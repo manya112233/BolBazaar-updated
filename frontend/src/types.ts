@@ -1,9 +1,11 @@
+export type ProductCategory = 'vegetables' | 'fruits' | 'grains' | 'spices' | 'other';
+
 export type Listing = {
   id: string;
   seller_id: string;
   seller_name: string;
   product_name: string;
-  category: string;
+  category: ProductCategory;
   quantity_kg: number;
   available_kg: number;
   price_per_kg: number;
@@ -166,10 +168,42 @@ export type BuyerDemandSearchResponse = {
   ok: boolean;
   event_id: string;
   detected_product_name?: string | null;
-  detected_category?: 'vegetables' | 'fruits' | 'grains' | 'spices' | 'other' | null;
+  detected_category?: ProductCategory | null;
   unique_buyer_count: number;
   threshold: number;
   threshold_reached: boolean;
   notified_seller_count: number;
   reason?: string | null;
+};
+
+export type BuyerDemandSearchRequest = {
+  buyer_id: string;
+  search_query: string;
+  max_price_per_kg?: number;
+  quantity_kg?: number;
+  delivery_location?: string;
+  needed_by?: string;
+  buyer_type?: 'kirana' | 'restaurant' | 'canteen' | 'retailer';
+};
+
+export type DemandPoolOpportunity = {
+  id: string;
+  product_name: string;
+  category?: ProductCategory | null;
+  total_quantity_kg: number;
+  unique_buyer_count: number;
+  average_max_price_per_kg?: number | null;
+  min_max_price_per_kg?: number | null;
+  max_max_price_per_kg?: number | null;
+  delivery_locations: string[];
+  needed_by_labels: string[];
+  buyer_types: string[];
+  window_minutes: number;
+  created_from_event_ids: string[];
+  suggested_action: string;
+  urgency_label: string;
+};
+
+export type DemandPoolResponse = {
+  items: DemandPoolOpportunity[];
 };

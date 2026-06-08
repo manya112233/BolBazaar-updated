@@ -1,6 +1,6 @@
 import { useMemo, useState, type FormEvent } from 'react';
 import type { AppLanguage } from '../../App';
-import type { AuthSession, Insight, Notification, Order, SellerDashboard, SellerLedgerView, SellerProfile } from '../../types';
+import type { AuthSession, DemandPoolOpportunity, Insight, Notification, Order, SellerDashboard, SellerLedgerView, SellerProfile } from '../../types';
 import ActivityTimeline from './ActivityTimeline';
 import { BarAnalytics, ColumnAnalytics } from './AnalyticsPanel';
 import DataTable from './DataTable';
@@ -18,6 +18,7 @@ export default function SellerOverview({
   ledger,
   orders,
   notifications,
+  demandPools,
   insight,
   loading,
   onRespondOrder,
@@ -31,6 +32,7 @@ export default function SellerOverview({
   ledger: SellerLedgerView | null;
   orders: Order[];
   notifications: Notification[];
+  demandPools: DemandPoolOpportunity[];
   insight: Insight | null;
   loading: boolean;
   onRespondOrder: (orderId: string, decision: 'accept' | 'reject') => Promise<void>;
@@ -113,6 +115,16 @@ export default function SellerOverview({
       tone: (['green', 'amber', 'blue', 'slate'] as const)[index % 4],
     }));
   }, [notifications]);
+
+  const demandPoolQuantities = useMemo(
+    () =>
+      demandPools.slice(0, 6).map((pool, index) => ({
+        label: pool.product_name,
+        value: pool.total_quantity_kg,
+        tone: (['green', 'amber', 'blue', 'slate'] as const)[index % 4],
+      })),
+    [demandPools],
+  );
 
   const timelineItems = useMemo(
     () =>
@@ -331,6 +343,31 @@ export default function SellerOverview({
             </section>
           </div>
 
+          <section className="bb-panel">
+            <div className="bb-panel-head">
+              <div>
+                <h3>Smart demand pools</h3>
+                <p>Aggregated buyer demand that sellers and FPOs can convert into matching supply.</p>
+              </div>
+              <StatusBadge label={demandPools.length > 0 ? 'Live opportunities' : 'Warming up'} tone={demandPools.length > 0 ? 'success' : 'info'} />
+            </div>
+            <DataTable
+              columns={[
+                { key: 'produce', label: 'Produce', render: (row: DemandPoolOpportunity) => <strong>{row.product_name}</strong> },
+                { key: 'qty', label: 'Demand', align: 'right', render: (row) => `${row.total_quantity_kg} kg` },
+                { key: 'buyers', label: 'Buyers', align: 'right', render: (row) => row.unique_buyer_count },
+                { key: 'price', label: 'Avg cap', align: 'right', render: (row) => row.average_max_price_per_kg ? `Rs ${row.average_max_price_per_kg}/kg` : 'Open' },
+                { key: 'locations', label: 'Locations', render: (row) => row.delivery_locations.slice(0, 2).join(', ') || 'Flexible' },
+                { key: 'need', label: 'Needed by', render: (row) => row.needed_by_labels.slice(0, 2).join(', ') || 'Open' },
+                { key: 'urgency', label: 'Urgency', render: (row) => <StatusBadge label={row.urgency_label} tone={row.urgency_label === 'High demand' ? 'warning' : 'info'} dot /> },
+                { key: 'action', label: 'Action', render: (row) => <span className="bb-inline-note">{row.suggested_action}</span> },
+              ]}
+              rows={demandPools.slice(0, 6)}
+              emptyTitle="No pooled demand yet"
+              emptyBody="Buyer demand searches will aggregate here into visible supply opportunities."
+            />
+          </section>
+
           <div className="bb-two-column">
             <section className="bb-panel">
               <div className="bb-panel-head">
@@ -385,6 +422,7 @@ export default function SellerOverview({
             <ColumnAnalytics title="Revenue trend" subtitle="Recent accepted and completed order value." items={acceptedTrend} formatValue={(value) => `Rs ${value}`} />
             <BarAnalytics title="Khata outstanding by buyer" subtitle="Highest open balances." items={duesByBuyer.slice(0, 6)} formatValue={(value) => `Rs ${value}`} />
             <BarAnalytics title="WhatsApp activity count" subtitle="Notification delivery activity." items={notificationCounts} />
+            <BarAnalytics title="Pooled demand by produce" subtitle="Buyer-side aggregated demand visible to sellers." items={demandPoolQuantities} formatValue={(value) => `${value} kg`} />
           </section>
         </>
       ) : (
@@ -588,14 +626,21 @@ export default function SellerOverview({
       <section className="bb-panel">
         <div className="bb-panel-head">
           <div>
-            <h3>WhatsApp activity timeline</h3>
-            <p>Notifications, demand pushes, and order prompts sent to the linked seller number.</p>
+            <h3>Smart demand pools</h3>
+            <p>Create matching listings on WhatsApp against visible pooled demand opportunities.</p>
           </div>
         </div>
-        <ActivityTimeline
-          items={timelineItems}
-          emptyTitle="No alerts yet"
-          emptyBody="Order prompts, demand pushes, and listing confirmations will appear here."
+        <DataTable
+          columns={[
+            { key: 'produce', label: 'Produce', render: (row: DemandPoolOpportunity) => <strong>{row.product_name}</strong> },
+            { key: 'buyers', label: 'Buyers', align: 'right', render: (row) => row.unique_buyer_count },
+            { key: 'qty', label: 'Quantity', align: 'right', render: (row) => `${row.total_quantity_kg} kg` },
+            { key: 'need', label: 'Needed by', render: (row) => row.needed_by_labels.slice(0, 2).join(', ') || 'Open' },
+            { key: 'action', label: 'Action', render: (row) => <span className="bb-inline-note">{row.suggested_action}</span> },
+          ]}
+          rows={demandPools}
+          emptyTitle="No demand pools yet"
+          emptyBody="As buyer demand fragments across the market, BolBazaar will surface pooled supply opportunities here."
         />
       </section>
     </div>

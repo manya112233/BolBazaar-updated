@@ -7,7 +7,7 @@ import hashlib
 import httpx
 
 from app.config import get_settings
-from app.schemas import BuyerDemandEvent, BuyerDemandSearchIn, BuyerDemandSearchResponse, LedgerCaptureMode, LedgerEntry, LedgerPaymentCreate, LedgerSummary, Listing, ListingCreate, Order, OrderCreate, ProduceQualityAssessment, SellerLedgerView, SellerNotification, SourceChannel
+from app.schemas import BuyerDemandEvent, BuyerDemandSearchIn, BuyerDemandSearchResponse, DemandPoolOpportunity, LedgerCaptureMode, LedgerEntry, LedgerPaymentCreate, LedgerSummary, Listing, ListingCreate, Order, OrderCreate, ProduceQualityAssessment, SellerLedgerView, SellerNotification, SourceChannel
 from app.schemas import SellerDashboard, SellerProfile
 from app.services.extraction import ExtractionService
 from app.services.geo_service import GeoService
@@ -302,16 +302,128 @@ class MarketplaceService:
         payload = f'demand_push|{seller_id}|{product_name.strip().lower()}'
         return hashlib.sha256(payload.encode('utf-8')).hexdigest()
 
-    def _format_demand_push_message(self, profile: SellerProfile, product_name: str, buyer_count: int) -> str:
+    def _format_demand_push_message(
+        self,
+        profile: SellerProfile,
+        product_name: str,
+        buyer_count: int,
+        pool: DemandPoolOpportunity | None = None,
+    ) -> str:
         seller_name = (profile.seller_name or 'Seller').strip()
+        quantity_line = ''
+        if pool is not None:
+            quantity = f'{pool.total_quantity_kg:g}'
+            location = pool.delivery_locations[0] if pool.delivery_locations else None
+            if profile.preferred_language == 'hi':
+                quantity_line = f' कुल मांग लगभग {quantity} किलो है'
+                if location:
+                    quantity_line += f' ({location})'
+                quantity_line += '.'
+            else:
+                quantity_line = f' Total pooled demand is about {quantity} kg'
+                if location:
+                    quantity_line += f' near {location}'
+                quantity_line += '.'
         if profile.preferred_language == 'hi':
             return (
                 f'नमस्ते {seller_name}, अभी {buyer_count} खरीदार {product_name} ढूंढ रहे हैं। '
-                'जल्दी बेचने के लिए अभी लिस्ट करें।'
+                f'{quantity_line} जल्दी बेचने के लिए अभी लिस्ट करें।'
             )
         return (
             f'Hi {seller_name}, {buyer_count} buyers are looking for {product_name} right now. '
-            'List now to sell faster.'
+            f'{quantity_line} List now to sell faster.'
+        )
+
+    def build_demand_pools(self, window_minutes: int | None = None) -> list[DemandPoolOpportunity]:
+        list_events = getattr(self.store, 'list_buyer_search_events', None)
+        if not callable(list_events):
+            return []
+
+        effective_window = window_minutes or self.settings.demand_push_window_minutes
+        since = datetime.utcnow() - timedelta(minutes=effective_window)
+        recent_events = list_events(since=since)
+
+        grouped: dict[str, list[BuyerDemandEvent]] = {}
+        for event in recent_events:
+            if not event.detected_product_name or not event.detected_product_name.strip():
+                continue
+            normalized_product = event.detected_product_name.strip().lower()
+            grouped.setdefault(normalized_product, []).append(event)
+
+        pools: list[DemandPoolOpportunity] = []
+        for normalized_product, events in grouped.items():
+            product_name = events[0].detected_product_name or normalized_product.title()
+            category = events[0].detected_category
+
+            buyer_ids = {
+                event.buyer_id.strip().lower()
+                for event in events
+                if event.buyer_id and event.buyer_id.strip()
+            }
+
+            explicit_quantity_total = sum(event.quantity_kg or 0 for event in events)
+            buyers_with_explicit_quantity = {
+                event.buyer_id.strip().lower()
+                for event in events
+                if event.quantity_kg and event.buyer_id and event.buyer_id.strip()
+            }
+
+            # For demo-friendly pooling, missing buyer quantities are estimated at 10 kg
+            # per unique buyer so fragmented search demand still surfaces as a visible opportunity.
+            estimated_missing_quantity = max(len(buyer_ids - buyers_with_explicit_quantity), 0) * 10
+            total_quantity_kg = explicit_quantity_total + estimated_missing_quantity
+
+            price_points = [event.max_price_per_kg for event in events if event.max_price_per_kg is not None]
+            average_max_price = round(sum(price_points) / len(price_points), 2) if price_points else None
+            min_max_price = min(price_points) if price_points else None
+            max_max_price = max(price_points) if price_points else None
+
+            delivery_locations = list(dict.fromkeys(
+                event.delivery_location.strip()
+                for event in events
+                if event.delivery_location and event.delivery_location.strip()
+            ))
+            needed_by_labels = list(dict.fromkeys(
+                event.needed_by.strip()
+                for event in events
+                if event.needed_by and event.needed_by.strip()
+            ))
+            buyer_types = list(dict.fromkeys(
+                event.buyer_type.strip()
+                for event in events
+                if event.buyer_type and event.buyer_type.strip()
+            ))
+
+            slug = ''.join(char if char.isalnum() else '_' for char in normalized_product).strip('_') or 'produce'
+            pool_hash = hashlib.sha256(normalized_product.encode('utf-8')).hexdigest()[:8]
+            formatted_quantity = f'{round(total_quantity_kg, 1):g}'
+            unique_buyer_count = len(buyer_ids)
+            urgency_label = 'High demand' if unique_buyer_count >= self.settings.demand_push_threshold else 'Emerging demand'
+
+            pools.append(
+                DemandPoolOpportunity(
+                    id=f'pool_{slug}_{pool_hash}',
+                    product_name=product_name,
+                    category=category,
+                    total_quantity_kg=round(total_quantity_kg, 2),
+                    unique_buyer_count=unique_buyer_count,
+                    average_max_price_per_kg=average_max_price,
+                    min_max_price_per_kg=min_max_price,
+                    max_max_price_per_kg=max_max_price,
+                    delivery_locations=delivery_locations,
+                    needed_by_labels=needed_by_labels,
+                    buyer_types=buyer_types,
+                    window_minutes=effective_window,
+                    created_from_event_ids=[event.id for event in events],
+                    suggested_action=f'Create a matching {product_name} listing for {formatted_quantity} kg demand from {unique_buyer_count} buyers.',
+                    urgency_label=urgency_label,
+                )
+            )
+
+        return sorted(
+            pools,
+            key=lambda item: (item.unique_buyer_count, item.total_quantity_kg),
+            reverse=True,
         )
 
     def process_buyer_demand_search(self, payload: BuyerDemandSearchIn) -> BuyerDemandSearchResponse:
@@ -329,6 +441,10 @@ class MarketplaceService:
             detected_product_name=detected_product_name,
             detected_category=detected_category,
             max_price_per_kg=payload.max_price_per_kg,
+            quantity_kg=payload.quantity_kg,
+            delivery_location=payload.delivery_location,
+            needed_by=payload.needed_by,
+            buyer_type=payload.buyer_type,
             source_channel='api',
         )
 
@@ -387,6 +503,10 @@ class MarketplaceService:
         release_fingerprint = getattr(self.store, 'release_demand_alert_fingerprint', None)
 
         cooldown_seconds = self.settings.demand_push_cooldown_minutes * 60
+        matching_pool = next(
+            (pool for pool in self.build_demand_pools() if pool.product_name.strip().lower() == detected_product_name.strip().lower()),
+            None,
+        )
         active_sellers = [
             profile
             for profile in self.list_seller_profiles()
@@ -401,7 +521,7 @@ class MarketplaceService:
                 if not can_send:
                     continue
 
-            message_text = self._format_demand_push_message(profile, detected_product_name, unique_buyer_count)
+            message_text = self._format_demand_push_message(profile, detected_product_name, unique_buyer_count, matching_pool)
             try:
                 whatsapp_result = self.whatsapp.send_text_message(to=profile.seller_id, body=message_text)
             except Exception as exc:  # pragma: no cover - network failures depend on runtime

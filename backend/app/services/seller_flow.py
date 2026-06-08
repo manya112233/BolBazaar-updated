@@ -19,6 +19,7 @@ MENU_ACTION_ADD_LISTING = 'menu_add_listing'
 MENU_ACTION_LISTINGS = 'menu_live_listings'
 MENU_ACTION_ORDERS = 'menu_orders'
 MENU_ACTION_LEDGER = 'menu_ledger'
+MENU_ACTION_DEMAND = 'menu_demand_pools'
 MENU_ACTION_CUSTOMERS = 'menu_customers'
 MENU_ACTION_PROFILE = 'menu_profile'
 MENU_ACTION_VERIFICATION = 'menu_verification_tools'
@@ -861,7 +862,7 @@ class SellerFlowService:
         fallback_commands = (
             'à¤œà¤µà¤¾à¤¬ à¤¦à¥‡à¤‚: DASHBOARD, NEW, LISTINGS, ORDERS, KHATA, CUSTOMERS, PROFILE, NAME, STORE, LANGUAGE, VERIFY, HELP'
             if self._is_hindi(profile)
-            else 'Reply with: DASHBOARD, NEW, LISTINGS, ORDERS, KHATA, CUSTOMERS, PROFILE, NAME, STORE, LANGUAGE, VERIFY, HELP'
+            else 'Reply with: DASHBOARD, NEW, LISTINGS, ORDERS, KHATA, DEMAND, CUSTOMERS, PROFILE, NAME, STORE, LANGUAGE, VERIFY, HELP'
         )
         fallback = f'{menu_body}\n\n{fallback_commands}'
 
@@ -875,6 +876,7 @@ class SellerFlowService:
                         {'id': MENU_ACTION_LISTINGS, 'title': 'मेरी लिस्टिंग', 'description': 'लाइव स्टॉक देखें'},
                         {'id': MENU_ACTION_ORDERS, 'title': 'मेरे ऑर्डर', 'description': 'नए और पुराने ऑर्डर देखें'},
                         {'id': MENU_ACTION_LEDGER, 'title': 'खाता', 'description': 'उधार और भुगतान रिकॉर्ड'},
+                        {'id': MENU_ACTION_DEMAND, 'title': 'मांग पूल', 'description': 'जुड़ी हुई buyer demand देखें'},
                     ],
                 },
                 {
@@ -903,6 +905,7 @@ class SellerFlowService:
                         {'id': MENU_ACTION_LISTINGS, 'title': 'My listings', 'description': 'See live stock'},
                         {'id': MENU_ACTION_ORDERS, 'title': 'Orders', 'description': 'Review buyer orders'},
                         {'id': MENU_ACTION_LEDGER, 'title': 'Khata ledger', 'description': 'Credit and payment records'},
+                        {'id': MENU_ACTION_DEMAND, 'title': 'Demand pools', 'description': 'See pooled buyer demand'},
                     ],
                 },
                 {
@@ -929,9 +932,9 @@ class SellerFlowService:
         )
         if force_text_fallback or not result.get('sent'):
             fallback_commands = (
-                'जवाब दें: DASHBOARD, NEW, LISTINGS, ORDERS, KHATA, CUSTOMERS, PROFILE, NAME, STORE, LANGUAGE, VERIFY, HELP'
+                'जवाब दें: DASHBOARD, NEW, LISTINGS, ORDERS, KHATA, DEMAND, CUSTOMERS, PROFILE, NAME, STORE, LANGUAGE, VERIFY, HELP'
                 if self._is_hindi(profile)
-                else 'Reply with: DASHBOARD, NEW, LISTINGS, ORDERS, KHATA, CUSTOMERS, PROFILE, NAME, STORE, LANGUAGE, VERIFY, HELP'
+                else 'Reply with: DASHBOARD, NEW, LISTINGS, ORDERS, KHATA, DEMAND, CUSTOMERS, PROFILE, NAME, STORE, LANGUAGE, VERIFY, HELP'
             )
             fallback = f'{menu_body}\n\n{fallback_commands}'
             self.whatsapp.send_text_message(to=profile.seller_id, body=fallback)
@@ -1241,6 +1244,23 @@ class SellerFlowService:
             ),
         )
 
+    def _is_demand_request(self, action: str) -> bool:
+        return self._matches_command(
+            action,
+            exact=(MENU_ACTION_DEMAND, 'demand', 'demands', 'demand pools', 'pool', 'pools', 'मांग', 'माँग'),
+            phrases=(
+                'show demand',
+                'show demand pools',
+                'buyer demand',
+                'smart demand',
+                'demand pool',
+                'मांग दिखाओ',
+                'माँग दिखाओ',
+                'डिमांड दिखाओ',
+                'डिमांड पूल',
+            ),
+        )
+
     def _is_customers_request(self, action: str) -> bool:
         return self._matches_command(
             action,
@@ -1430,6 +1450,8 @@ class SellerFlowService:
             return self._send_orders(profile)
         if self._is_ledger_request(action):
             return self._send_ledger(profile)
+        if self._is_demand_request(action):
+            return self._send_demand_pools(profile)
         if self._is_customers_request(action):
             return self._send_customers(profile)
         if self._is_profile_request(action):
@@ -2563,6 +2585,43 @@ class SellerFlowService:
 
     def _send_ledger(self, profile: SellerProfile) -> dict[str, Any]:
         return self._send_text(profile, self._format_ledger_text(profile), handled='seller_ledger')
+
+    def _send_demand_pools(self, profile: SellerProfile) -> dict[str, Any]:
+        pools = self.marketplace.build_demand_pools()
+        if not pools:
+            body = (
+                'अभी कोई pooled buyer demand नहीं है। Buyer demand आते ही bulk मौके यहाँ दिखेंगे।'
+                if self._is_hindi(profile)
+                else 'There are no pooled buyer demand opportunities right now. Bulk demand will appear here as buyers search.'
+            )
+            return self._send_text(profile, body, handled='seller_demand_pools')
+
+        body_lines = ['स्मार्ट डिमांड पूल:'] if self._is_hindi(profile) else ['Smart demand pools:']
+        for pool in pools[:3]:
+            avg_price = (
+                f'औसत कीमत Rs {pool.average_max_price_per_kg}/किलो'
+                if self._is_hindi(profile) and pool.average_max_price_per_kg is not None
+                else f'avg cap Rs {pool.average_max_price_per_kg}/kg'
+                if pool.average_max_price_per_kg is not None
+                else ('खुली कीमत' if self._is_hindi(profile) else 'open price')
+            )
+            locations = ', '.join(pool.delivery_locations[:2]) if pool.delivery_locations else ('लचीला' if self._is_hindi(profile) else 'flexible')
+            needed_by = ', '.join(pool.needed_by_labels[:2]) if pool.needed_by_labels else ('कोई भी समय' if self._is_hindi(profile) else 'open timing')
+            if self._is_hindi(profile):
+                body_lines.append(
+                    f'- {pool.product_name}: {pool.total_quantity_kg:g} किलो, {pool.unique_buyer_count} खरीदार, {avg_price}, स्थान {locations}, चाहिए {needed_by}'
+                )
+            else:
+                body_lines.append(
+                    f'- {pool.product_name}: {pool.total_quantity_kg:g} kg, {pool.unique_buyer_count} buyers, {avg_price}, locations {locations}, needed by {needed_by}'
+                )
+
+        body_lines.append(
+            'मैचिंग लिस्टिंग बनाने के लिए NEW भेजें।'
+            if self._is_hindi(profile)
+            else 'Reply NEW to create a matching listing.'
+        )
+        return self._send_text(profile, '\n'.join(body_lines), handled='seller_demand_pools')
 
     def _send_live_listings(self, profile: SellerProfile) -> dict[str, Any]:
         dashboard = self.marketplace.build_seller_dashboard(profile.seller_id)

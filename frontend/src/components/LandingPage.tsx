@@ -19,7 +19,7 @@ const landingCopy = {
     badge: 'Google Solution Challenge · WhatsApp-first agri-commerce',
     title: 'Turn a farmer’s WhatsApp message into a live produce marketplace.',
     body:
-      'BolBazaar helps farmers, FPOs, and local sellers create verified listings, manage orders, track khata, and respond to buyer demand without installing a new app.',
+      'BolBazaar helps farmers, FPOs, and local sellers create verified listings, manage orders, track khata, and pool fragmented buyer demand into bulk supply opportunities without installing a new app.',
     ctaPrimary: 'See how it works',
     ctaSecondary: 'Open dashboard',
     login: 'Login',
@@ -46,7 +46,7 @@ const landingCopy = {
     badge: 'Google Solution Challenge · WhatsApp-first agri-commerce',
     title: 'Turn a farmer’s WhatsApp message into a live produce marketplace.',
     body:
-      'BolBazaar farmers, FPOs, और local sellers को बिना नया app install कराए verified listings, orders, khata, और buyer demand signals manage करने देता है.',
+      'BolBazaar farmers, FPOs, और local sellers को बिना नया app install कराए verified listings, orders, khata, और pooled buyer demand opportunities manage करने देता है.',
     ctaPrimary: 'How it works देखें',
     ctaSecondary: 'Dashboard खोलें',
     login: 'Login',
@@ -302,7 +302,7 @@ export default function LandingPage({
                   {feature === 'Firestore-backed live marketplace' && 'Listings, orders, and khata stay synced across dashboard views.'}
                   {feature === 'WhatsApp order alerts' && 'Sellers get instant prompts to accept or reject new buyer demand.'}
                   {feature === 'Khata ledger' && 'Informal credit becomes trackable with structured dues and collections.'}
-                  {feature === 'Buyer demand signals' && 'Search activity can trigger seller listing nudges before demand is lost.'}
+                  {feature === 'Buyer demand signals' && 'Search activity can now roll into pooled bulk-demand opportunities before demand is lost.'}
                   {feature === 'Seller/FPO verification' && 'Profiles become more trusted for B2B buyers and repeat trade.'}
                   {feature === 'AI seller insights' && 'Operational suggestions help sellers move stock and respond faster.'}
                 </p>

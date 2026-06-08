@@ -7,9 +7,9 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import PlainTextResponse
 
 from app.dependencies import get_auth_service, get_marketplace, get_store
-from datetime import datetime
+from datetime import datetime, timedelta
 
-from app.schemas import BuyerDemandSearchIn, BuyerDemandSearchResponse, DemoSeedResponse, LedgerPaymentCreate, ListingResponse, OrderCreate, OrderDecisionIn, OtpRequestIn, OtpRequestResponse, OtpVerifyIn, OtpVerifyResponse, SellerLedgerView, SellerMessageIn, SellerProfile
+from app.schemas import BuyerDemandEvent, BuyerDemandSearchIn, BuyerDemandSearchResponse, DemandPoolResponse, DemoSeedResponse, LedgerPaymentCreate, ListingResponse, OrderCreate, OrderDecisionIn, OtpRequestIn, OtpRequestResponse, OtpVerifyIn, OtpVerifyResponse, SellerLedgerView, SellerMessageIn, SellerProfile
 from app.services.auth_service import AuthService
 from app.services.marketplace import MarketplaceService
 from app.services.seller_flow import SellerFlowService
@@ -20,6 +20,56 @@ router = APIRouter()
 logger = logging.getLogger(__name__)
 
 
+def _seed_demo_demand_pools(store: Any) -> None:
+    save_event = getattr(store, 'save_buyer_search_event', None)
+    if not callable(save_event):
+        return
+
+    base_time = datetime.utcnow()
+    seeded_events = [
+        BuyerDemandEvent(
+            buyer_id='demo-buyer-1',
+            search_query='tomato for kirana',
+            normalized_query='tomato for kirana',
+            detected_product_name='Tomato',
+            detected_category='vegetables',
+            max_price_per_kg=28,
+            quantity_kg=20,
+            delivery_location='South Delhi',
+            needed_by='Today evening',
+            buyer_type='kirana',
+            created_at=base_time - timedelta(minutes=18),
+        ),
+        BuyerDemandEvent(
+            buyer_id='demo-buyer-2',
+            search_query='tomato for restaurant',
+            normalized_query='tomato for restaurant',
+            detected_product_name='Tomato',
+            detected_category='vegetables',
+            max_price_per_kg=30,
+            quantity_kg=15,
+            delivery_location='South Delhi',
+            needed_by='Tomorrow morning',
+            buyer_type='restaurant',
+            created_at=base_time - timedelta(minutes=12),
+        ),
+        BuyerDemandEvent(
+            buyer_id='demo-buyer-3',
+            search_query='fresh tomato',
+            normalized_query='fresh tomato',
+            detected_product_name='Tomato',
+            detected_category='vegetables',
+            max_price_per_kg=29,
+            delivery_location='Lajpat Nagar',
+            needed_by='Today',
+            buyer_type='retailer',
+            created_at=base_time - timedelta(minutes=7),
+        ),
+    ]
+    for event in seeded_events:
+        save_event(event)
+
+
 @router.get('/health')
 def health() -> dict[str, str]:
     return {'status': 'ok'}
@@ -28,6 +78,7 @@ def health() -> dict[str, str]:
 @router.post('/demo/seed', response_model=DemoSeedResponse)
 def seed_demo(store: Any = Depends(get_store)) -> DemoSeedResponse:
     store.reset()
+    _seed_demo_demand_pools(store)
     return DemoSeedResponse(ok=True, message='Demo store reset successfully')
 
 
@@ -106,6 +157,19 @@ def record_buyer_demand_search(
     marketplace: MarketplaceService = Depends(get_marketplace),
 ) -> BuyerDemandSearchResponse:
     return marketplace.process_buyer_demand_search(payload)
+
+
+@router.get('/demand-pools', response_model=DemandPoolResponse)
+def list_demand_pools(marketplace: MarketplaceService = Depends(get_marketplace)) -> DemandPoolResponse:
+    return DemandPoolResponse(items=marketplace.build_demand_pools())
+
+
+@router.get('/sellers/{seller_id}/demand-pools', response_model=DemandPoolResponse)
+def list_seller_demand_pools(
+    seller_id: str,
+    marketplace: MarketplaceService = Depends(get_marketplace),
+) -> DemandPoolResponse:
+    return DemandPoolResponse(items=marketplace.build_demand_pools())
 
 
 @router.get('/listings/{listing_id}')

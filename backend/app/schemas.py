@@ -71,6 +71,10 @@ class BuyerDemandSearchIn(BaseModel):
     buyer_id: str = Field(min_length=2, max_length=120)
     search_query: str = Field(min_length=2, max_length=200)
     max_price_per_kg: float | None = Field(default=None, gt=0)
+    quantity_kg: float | None = Field(default=None, gt=0)
+    delivery_location: str | None = Field(default=None, max_length=200)
+    needed_by: str | None = Field(default=None, max_length=120)
+    buyer_type: Literal['kirana', 'restaurant', 'canteen', 'retailer'] | None = None
 
 
 class OtpRequestIn(BaseModel):
@@ -131,6 +135,10 @@ class BuyerDemandEvent(BaseModel):
     detected_product_name: str | None = None
     detected_category: ProductCategory | None = None
     max_price_per_kg: float | None = None
+    quantity_kg: float | None = None
+    delivery_location: str | None = None
+    needed_by: str | None = None
+    buyer_type: str | None = None
     source_channel: SourceChannel = 'api'
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
@@ -145,6 +153,28 @@ class BuyerDemandSearchResponse(BaseModel):
     threshold_reached: bool = False
     notified_seller_count: int = 0
     reason: str | None = None
+
+
+class DemandPoolOpportunity(BaseModel):
+    id: str
+    product_name: str
+    category: ProductCategory | None = None
+    total_quantity_kg: float = Field(ge=0)
+    unique_buyer_count: int = Field(ge=0)
+    average_max_price_per_kg: float | None = Field(default=None, ge=0)
+    min_max_price_per_kg: float | None = Field(default=None, ge=0)
+    max_max_price_per_kg: float | None = Field(default=None, ge=0)
+    delivery_locations: list[str] = Field(default_factory=list)
+    needed_by_labels: list[str] = Field(default_factory=list)
+    buyer_types: list[str] = Field(default_factory=list)
+    window_minutes: int = Field(ge=1)
+    created_from_event_ids: list[str] = Field(default_factory=list)
+    suggested_action: str
+    urgency_label: str
+
+
+class DemandPoolResponse(BaseModel):
+    items: list[DemandPoolOpportunity] = Field(default_factory=list)
 
 
 class ProduceQualityAssessment(BaseModel):

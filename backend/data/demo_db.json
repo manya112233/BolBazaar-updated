@@ -389,6 +389,51 @@
       "max_price_per_kg": 100.0,
       "source_channel": "api",
       "created_at": "2026-04-28T10:01:24.712003"
+    },
+    {
+      "id": "dem_c0562bc32a",
+      "buyer_id": "buyer-eef00ced-b484-4bc0-8470-7180fd598caa",
+      "search_query": "spinach",
+      "normalized_query": "spinach",
+      "detected_product_name": "Spinach",
+      "detected_category": "vegetables",
+      "max_price_per_kg": 30.0,
+      "quantity_kg": 10.0,
+      "delivery_location": "noida",
+      "needed_by": "10 june",
+      "buyer_type": null,
+      "source_channel": "api",
+      "created_at": "2026-06-08T11:54:15.058994"
+    },
+    {
+      "id": "dem_fab778a5cf",
+      "buyer_id": "buyer-eef00ced-b484-4bc0-8470-7180fd598caa",
+      "search_query": "spinach",
+      "normalized_query": "spinach",
+      "detected_product_name": "Spinach",
+      "detected_category": "vegetables",
+      "max_price_per_kg": 15.0,
+      "quantity_kg": 20.0,
+      "delivery_location": "kalkaji",
+      "needed_by": "today evening",
+      "buyer_type": null,
+      "source_channel": "api",
+      "created_at": "2026-06-08T11:55:36.130241"
+    },
+    {
+      "id": "dem_a5849aa085",
+      "buyer_id": "918290838792",
+      "search_query": "onion",
+      "normalized_query": "onion",
+      "detected_product_name": "Onion",
+      "detected_category": "vegetables",
+      "max_price_per_kg": 100.0,
+      "quantity_kg": null,
+      "delivery_location": null,
+      "needed_by": null,
+      "buyer_type": null,
+      "source_channel": "api",
+      "created_at": "2026-06-08T12:09:28.675672"
     }
   ],
   "notifications": [
@@ -672,6 +717,48 @@
       "expires_at": "2026-06-08T06:47:54.983724",
       "verified_at": "2026-06-08T06:43:08.448273",
       "failed_attempts": 1
+    },
+    {
+      "id": "otp_475925e21a",
+      "role": "buyer",
+      "phone_number": "911108330909",
+      "otp_code_hash": "d38434e78191d7572b2ef1dbad52dd27dabd4012c2332c6c5299f2e2f2469cdc",
+      "delivery_method": "demo_preview",
+      "delivery_status": "preview",
+      "seller_id": null,
+      "note": "Buyer OTP is running in demo preview mode until an SMS provider is connected.",
+      "created_at": "2026-06-08T11:54:44.929033",
+      "expires_at": "2026-06-08T11:59:44.928866",
+      "verified_at": "2026-06-08T11:54:54.854083",
+      "failed_attempts": 0
+    },
+    {
+      "id": "otp_3bcc18f8f8",
+      "role": "seller",
+      "phone_number": "919971497076",
+      "otp_code_hash": "8016d3dadee39a430732b6f3fcb93c26b5ac26614f41929e1913a9b2ca543431",
+      "delivery_method": "whatsapp",
+      "delivery_status": "sent",
+      "seller_id": "919971497076",
+      "note": "OTP sent to the seller number over WhatsApp.",
+      "created_at": "2026-06-08T11:56:14.832253",
+      "expires_at": "2026-06-08T12:01:14.831790",
+      "verified_at": "2026-06-08T11:56:27.387138",
+      "failed_attempts": 0
+    },
+    {
+      "id": "otp_df2667bde7",
+      "role": "buyer",
+      "phone_number": "918290838792",
+      "otp_code_hash": "921b28d124ff7412c599ab91b7dfaa27c6c685c87ff30f32c90aae8c026e3d54",
+      "delivery_method": "demo_preview",
+      "delivery_status": "preview",
+      "seller_id": null,
+      "note": "Buyer OTP is running in demo preview mode until an SMS provider is connected.",
+      "created_at": "2026-06-08T12:09:02.189682",
+      "expires_at": "2026-06-08T12:14:02.186851",
+      "verified_at": "2026-06-08T12:09:08.953791",
+      "failed_attempts": 0
     }
   ],
   "demand_alert_fingerprints": {},
@@ -965,6 +1052,10 @@
     "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgWM0VCMEU2MjMyQkYyM0Q0RkQ3NUM0NgA=": {
       "status": "processed",
       "updated_at": "2026-06-08T06:44:16.173500+00:00"
+    },
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0E5MDk1RkVEMTQ0REYwNzRCRDAA": {
+      "status": "processed",
+      "updated_at": "2026-06-08T12:08:02.401320+00:00"
     }
   },
   "processed_whatsapp_message_ids": [
@@ -1036,6 +1127,7 @@
     "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0FGODlCQTk4MzYwOUFDMjA1NzgA",
     "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0FDQ0ZFREUxNkJFMzMwNEY0ODYA",
     "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0FBMTNDOTVFRkMyQUEwMjQ0MzIA",
-    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgWM0VCMEU2MjMyQkYyM0Q0RkQ3NUM0NgA="
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgWM0VCMEU2MjMyQkYyM0Q0RkQ3NUM0NgA=",
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0E5MDk1RkVEMTQ0REYwNzRCRDAA"
   ]
 }

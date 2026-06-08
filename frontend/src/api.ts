@@ -1,4 +1,4 @@
-import type { AuthRole, BuyerDemandSearchResponse, Insight, Listing, Notification, Order, OtpRequestResponse, OtpVerifyResponse, SellerDashboard, SellerLedgerView, SellerProfile } from './types';
+import type { AuthRole, BuyerDemandSearchRequest, BuyerDemandSearchResponse, DemandPoolOpportunity, DemandPoolResponse, Insight, Listing, Notification, Order, OtpRequestResponse, OtpVerifyResponse, SellerDashboard, SellerLedgerView, SellerProfile } from './types';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 
@@ -127,6 +127,11 @@ export async function fetchSellerLedger(sellerId: string): Promise<SellerLedgerV
   }
 }
 
+export async function fetchDemandPools(): Promise<DemandPoolOpportunity[]> {
+  const data = await request<DemandPoolResponse>('/api/demand-pools');
+  return data.items;
+}
+
 export async function recordLedgerPayment(payload: {
   seller_id: string;
   buyer_name: string;
@@ -144,11 +149,7 @@ export async function recordLedgerPayment(payload: {
   return data.ledger;
 }
 
-export async function reportBuyerDemandSearch(payload: {
-  buyer_id: string;
-  search_query: string;
-  max_price_per_kg?: number;
-}): Promise<BuyerDemandSearchResponse> {
+export async function reportBuyerDemandSearch(payload: BuyerDemandSearchRequest): Promise<BuyerDemandSearchResponse> {
   return request<BuyerDemandSearchResponse>('/api/buyers/demand-search', {
     method: 'POST',
     body: JSON.stringify(payload),

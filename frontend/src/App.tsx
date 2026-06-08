@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   createDemoListing,
+  fetchDemandPools,
   fetchInsight,
   fetchListings,
   fetchNotifications,
@@ -20,7 +21,7 @@ import LandingPage from './components/LandingPage';
 import OrderModal from './components/OrderModal';
 import SellerWorkspace from './components/SellerWorkspace';
 import DashboardLayout, { type DashboardSection } from './components/dashboard/DashboardLayout';
-import type { AuthRole, AuthSession, Insight, Listing, Notification, Order, SellerDashboard, SellerLedgerView, SellerProfile } from './types';
+import type { AuthRole, AuthSession, DemandPoolOpportunity, Insight, Listing, Notification, Order, SellerDashboard, SellerLedgerView, SellerProfile } from './types';
 
 const BUYER_SESSION_STORAGE_KEY = 'bolbazaar_buyer_session_id';
 const APP_SESSION_STORAGE_KEY = 'bolbazaar_web_session';
@@ -86,6 +87,7 @@ export default function App() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [sellers, setSellers] = useState<SellerProfile[]>([]);
+  const [demandPools, setDemandPools] = useState<DemandPoolOpportunity[]>([]);
   const [dashboard, setDashboard] = useState<SellerDashboard | null>(null);
   const [ledger, setLedger] = useState<SellerLedgerView | null>(null);
   const [insight, setInsight] = useState<Insight | null>(null);
@@ -112,17 +114,19 @@ export default function App() {
     setLoading(true);
     setError(null);
     try {
-      const [nextListings, nextOrders, nextNotifications, nextSellers] = await Promise.all([
+      const [nextListings, nextOrders, nextNotifications, nextSellers, nextDemandPools] = await Promise.all([
         fetchListings(),
         fetchOrders(),
         fetchNotifications(),
         fetchSellers(),
+        fetchDemandPools(),
       ]);
 
       setListings(nextListings);
       setOrders(nextOrders);
       setNotifications(nextNotifications);
       setSellers(nextSellers);
+      setDemandPools(nextDemandPools);
 
       const nextSellerId =
         preferredSellerId ||
@@ -132,7 +136,6 @@ export default function App() {
         nextListings[0]?.seller_id ||
         nextNotifications[0]?.seller_id ||
         null;
-
       setSelectedSellerId(nextSellerId);
 
       if (nextSellerId) {
@@ -203,13 +206,17 @@ export default function App() {
     }
 
     const timeoutId = window.setTimeout(() => {
+      const buyerId = session.phone_number || buyerSessionIdRef.current;
       void reportBuyerDemandSearch({
-        buyer_id: buyerSessionIdRef.current,
+        buyer_id: buyerId,
         search_query: searchQuery,
         max_price_per_kg: maxPrice > 0 ? maxPrice : undefined,
-      }).catch((err) => {
-        console.warn('Failed to report buyer demand search', err);
-      });
+      })
+        .then(() => fetchDemandPools())
+        .then((items) => setDemandPools(items))
+        .catch((err) => {
+          console.warn('Failed to report buyer demand search', err);
+        });
     }, 700);
 
     return () => window.clearTimeout(timeoutId);
@@ -361,6 +368,7 @@ export default function App() {
               sellers={sectionScopedBuyerSellers}
               orders={sectionScopedBuyerOrders}
               notifications={notifications}
+              demandPools={demandPools}
               dashboard={dashboard}
               insight={insight}
               selectedSellerId={activeSellerId}
@@ -375,6 +383,13 @@ export default function App() {
               onQueryChange={setQuery}
               onMaxPriceChange={setMaxPrice}
               onOrder={setSelectedListing}
+              onCreateDemand={async (payload) => {
+                await reportBuyerDemandSearch({
+                  ...payload,
+                  buyer_id: session.phone_number || buyerSessionIdRef.current,
+                });
+                await loadAll(activeSellerId);
+              }}
             />
           ) : (
             <SellerWorkspace
@@ -386,6 +401,7 @@ export default function App() {
               ledger={ledger}
               orders={sectionScopedSellerOrders}
               notifications={sectionScopedSellerNotifications}
+              demandPools={demandPools}
               insight={insight}
               loading={loading}
               onRespondOrder={async (orderId, decision) => {

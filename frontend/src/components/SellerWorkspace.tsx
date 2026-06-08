@@ -1,5 +1,5 @@
 import type { AppLanguage } from '../App';
-import type { AuthSession, Insight, Notification, Order, SellerDashboard, SellerLedgerView, SellerProfile } from '../types';
+import type { AuthSession, DemandPoolOpportunity, Insight, Notification, Order, SellerDashboard, SellerLedgerView, SellerProfile } from '../types';
 import SellerOverview from './dashboard/SellerOverview';
 
 export default function SellerWorkspace(props: {
@@ -11,6 +11,7 @@ export default function SellerWorkspace(props: {
   ledger: SellerLedgerView | null;
   orders: Order[];
   notifications: Notification[];
+  demandPools: DemandPoolOpportunity[];
   insight: Insight | null;
   loading: boolean;
   onRespondOrder: (orderId: string, decision: 'accept' | 'reject') => Promise<void>;
