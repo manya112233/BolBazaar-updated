@@ -1,0 +1,1041 @@
+{
+  "listings": [
+    {
+      "id": "lst_cad27bb189",
+      "seller_id": "919971497076",
+      "seller_name": "Manya",
+      "product_name": "Onion",
+      "category": "vegetables",
+      "quantity_kg": 20.0,
+      "available_kg": 20.0,
+      "price_per_kg": 40.0,
+      "pickup_location": "Shanti Nagar, Bengaluru, Karnataka, India",
+      "quality_grade": "standard",
+      "quality_score": null,
+      "quality_summary": null,
+      "quality_assessment_source": "text_signal",
+      "quality_signals": [],
+      "image_url": null,
+      "description": "Onion from Manya, available for same-day pickup at Shanti Nagar, Bengaluru, Karnataka, India.",
+      "tags": [
+        "vegetables",
+        "standard",
+        "onion",
+        "whatsapp"
+      ],
+      "latitude": 12.9577549,
+      "longitude": 77.5992505,
+      "place_id": "ChIJ52kcAs4VrjsROc2UmPe_ifU",
+      "source_channel": "whatsapp",
+      "raw_message": "Today I have 20 kilo onion 40 rupees kilo.",
+      "status": "live",
+      "freshness_label": "Fresh today",
+      "created_at": "2026-04-28T09:15:55.893857"
+    },
+    {
+      "id": "lst_4907103cd8",
+      "seller_id": "919971497076",
+      "seller_name": "Manya",
+      "product_name": "Tomato",
+      "category": "vegetables",
+      "quantity_kg": 10.0,
+      "available_kg": 10.0,
+      "price_per_kg": 5.0,
+      "pickup_location": "Shanti Nagar, Bengaluru, Karnataka, India",
+      "quality_grade": "standard",
+      "quality_score": 75,
+      "quality_summary": "Tomatoes are mostly ripe with some blemishes and inconsistent coloring.",
+      "quality_assessment_source": "ai_visual",
+      "quality_signals": [
+        "ripe",
+        "blemishes",
+        "color inconsistency"
+      ],
+      "image_url": "http://localhost:8000/media/listings/f8e86bbffaddeb22810dd7c3.jpg",
+      "description": "Tomato from Manya, available for same-day pickup at Shanti Nagar, Bengaluru, Karnataka, India.",
+      "tags": [
+        "vegetables",
+        "standard",
+        "tomato",
+        "whatsapp",
+        "photo_checked"
+      ],
+      "latitude": 12.9577549,
+      "longitude": 77.5992505,
+      "place_id": "ChIJ52kcAs4VrjsROc2UmPe_ifU",
+      "source_channel": "whatsapp",
+      "raw_message": "Tomato 10 kilo 5 rupees kilo",
+      "status": "live",
+      "freshness_label": "AI photo checked",
+      "created_at": "2026-04-28T09:18:07.920168"
+    },
+    {
+      "id": "lst_a2a8157e67",
+      "seller_id": "919971497076",
+      "seller_name": "Manya",
+      "product_name": "Onion",
+      "category": "vegetables",
+      "quantity_kg": 30.0,
+      "available_kg": 10.0,
+      "price_per_kg": 40.0,
+      "pickup_location": "Shanti Nagar, Bengaluru, Karnataka, India",
+      "quality_grade": "standard",
+      "quality_score": null,
+      "quality_summary": null,
+      "quality_assessment_source": "text_signal",
+      "quality_signals": [],
+      "image_url": null,
+      "description": "Onion from Manya, available for same-day pickup at Shanti Nagar, Bengaluru, Karnataka, India.",
+      "tags": [
+        "vegetables",
+        "standard",
+        "onion",
+        "whatsapp"
+      ],
+      "latitude": 12.9577549,
+      "longitude": 77.5992505,
+      "place_id": "ChIJ52kcAs4VrjsROc2UmPe_ifU",
+      "source_channel": "whatsapp",
+      "raw_message": "मेरे पास आज 30 किलो प्याज है ₹40 किलो।",
+      "status": "live",
+      "freshness_label": "Fresh today",
+      "created_at": "2026-04-28T09:16:40.721192"
+    },
+    {
+      "id": "lst_1ed0ae726e",
+      "seller_id": "919971497076",
+      "seller_name": "Manya",
+      "product_name": "Potato",
+      "category": "vegetables",
+      "quantity_kg": 30.0,
+      "available_kg": 30.0,
+      "price_per_kg": 40.0,
+      "pickup_location": "Shanti Nagar, Bengaluru, Karnataka, India",
+      "quality_grade": "standard",
+      "quality_score": null,
+      "quality_summary": null,
+      "quality_assessment_source": "text_signal",
+      "quality_signals": [],
+      "image_url": null,
+      "description": "Potato from Manya, available for same-day pickup at Shanti Nagar, Bengaluru, Karnataka, India.",
+      "tags": [
+        "vegetables",
+        "standard",
+        "potato",
+        "whatsapp"
+      ],
+      "latitude": 12.9577549,
+      "longitude": 77.5992505,
+      "place_id": "ChIJ52kcAs4VrjsROc2UmPe_ifU",
+      "source_channel": "whatsapp",
+      "raw_message": "Today I have 30 kilo potato 40 rupees kilo",
+      "status": "live",
+      "freshness_label": "Fresh today",
+      "created_at": "2026-04-28T09:15:18.172919"
+    },
+    {
+      "id": "lst_26ceba53aa",
+      "seller_id": "919971497076",
+      "seller_name": "Manya",
+      "product_name": "Onion",
+      "category": "vegetables",
+      "quantity_kg": 30.0,
+      "available_kg": 30.0,
+      "price_per_kg": 40.0,
+      "pickup_location": "Shanti Nagar, Bengaluru, Karnataka, India",
+      "quality_grade": "standard",
+      "quality_score": null,
+      "quality_summary": null,
+      "quality_assessment_source": "text_signal",
+      "quality_signals": [],
+      "image_url": null,
+      "description": "Onion from Manya, available for same-day pickup at Shanti Nagar, Bengaluru, Karnataka, India.",
+      "tags": [
+        "vegetables",
+        "standard",
+        "onion",
+        "whatsapp"
+      ],
+      "latitude": 12.9577549,
+      "longitude": 77.5992505,
+      "place_id": "ChIJ52kcAs4VrjsROc2UmPe_ifU",
+      "source_channel": "whatsapp",
+      "raw_message": "I have 30 kilo onion 40 rupees kilo Shantipur pickup.",
+      "status": "live",
+      "freshness_label": "Fresh today",
+      "created_at": "2026-06-08T06:30:38.610182"
+    },
+    {
+      "id": "lst_1d275ce78a",
+      "seller_id": "919971497076",
+      "seller_name": "Manya",
+      "product_name": "Onion",
+      "category": "vegetables",
+      "quantity_kg": 10.0,
+      "available_kg": 10.0,
+      "price_per_kg": 20.0,
+      "pickup_location": "Shanti Nagar, Dhaka, Bangladesh",
+      "quality_grade": "standard",
+      "quality_score": null,
+      "quality_summary": null,
+      "quality_assessment_source": "text_signal",
+      "quality_signals": [],
+      "image_url": null,
+      "description": "Onion from Manya, available for same-day pickup at Shantinagar.",
+      "tags": [
+        "vegetables",
+        "standard",
+        "onion",
+        "whatsapp"
+      ],
+      "latitude": 23.7381866,
+      "longitude": 90.41428529999999,
+      "place_id": "ChIJ8wye51-4VTcRCDemMNIjdTI",
+      "source_channel": "whatsapp",
+      "raw_message": "10 kilo Onion, 20 rupees kilo, Shantinagar pickup",
+      "status": "live",
+      "freshness_label": "Fresh today",
+      "created_at": "2026-06-08T06:38:27.981686"
+    },
+    {
+      "id": "lst_8291249fa2",
+      "seller_id": "919971497076",
+      "seller_name": "Manya",
+      "product_name": "Potato",
+      "category": "vegetables",
+      "quantity_kg": 30.0,
+      "available_kg": 29.0,
+      "price_per_kg": 25.0,
+      "pickup_location": "Shanti Nagar, Bengaluru, Karnataka, India",
+      "quality_grade": "standard",
+      "quality_score": 78,
+      "quality_summary": "Potatoes appear mostly fresh with a few minor blemishes, indicating good quality for standard grade.",
+      "quality_assessment_source": "ai_visual",
+      "quality_signals": [
+        "minor blemishes",
+        "good color consistency",
+        "firm texture",
+        "fresh appearance"
+      ],
+      "image_url": "http://localhost:8000/media/listings/d916f3e1bc411bd6ae37fe42.jpg",
+      "description": "Potato from Manya, available for same-day pickup at Shanti Nagar, Bengaluru, Karnataka, India.",
+      "tags": [
+        "vegetables",
+        "standard",
+        "potato",
+        "whatsapp",
+        "photo_checked"
+      ],
+      "latitude": 12.9577549,
+      "longitude": 77.5992505,
+      "place_id": "ChIJ52kcAs4VrjsROc2UmPe_ifU",
+      "source_channel": "whatsapp",
+      "raw_message": "Potato 30 kilo\n25 rupee kilo",
+      "status": "live",
+      "freshness_label": "AI photo checked",
+      "created_at": "2026-06-08T06:41:20.130577"
+    }
+  ],
+  "orders": [
+    {
+      "id": "ord_fe7a0341b6",
+      "listing_id": "lst_a2a8157e67",
+      "seller_id": "919971497076",
+      "seller_name": "Manya",
+      "product_name": "Onion",
+      "buyer_name": "Buyer 3942",
+      "buyer_type": "restaurant",
+      "quantity_kg": 20.0,
+      "pickup_time": "Today, 5:00 PM",
+      "unit_price": 40.0,
+      "total_price": 800.0,
+      "status": "accepted",
+      "created_at": "2026-04-28T09:18:52.554241"
+    },
+    {
+      "id": "ord_43be58b061",
+      "listing_id": "lst_1ed0ae726e",
+      "seller_id": "919971497076",
+      "seller_name": "Manya",
+      "product_name": "Potato",
+      "buyer_name": "Buyer 3942",
+      "buyer_type": "restaurant",
+      "quantity_kg": 20.0,
+      "pickup_time": "Today, 5:00 PM",
+      "unit_price": 40.0,
+      "total_price": 800.0,
+      "status": "rejected",
+      "created_at": "2026-04-28T09:19:07.050808"
+    },
+    {
+      "id": "ord_309fbef5c6",
+      "listing_id": "lst_8291249fa2",
+      "seller_id": "919971497076",
+      "seller_name": "Manya",
+      "product_name": "Potato",
+      "buyer_name": "Buyer 7076",
+      "buyer_type": "canteen",
+      "quantity_kg": 1.0,
+      "pickup_time": "Today, 5:00 PM",
+      "unit_price": 25.0,
+      "total_price": 25.0,
+      "status": "accepted",
+      "created_at": "2026-06-08T06:43:56.585976"
+    }
+  ],
+  "ledger_entries": [
+    {
+      "id": "led_62b3eb2ddd",
+      "seller_id": "919971497076",
+      "buyer_name": "3942",
+      "entry_kind": "sale",
+      "product_name": "onion",
+      "quantity_kg": 29.0,
+      "total_amount": 2000.0,
+      "amount_paid": 1600.0,
+      "amount_due": 400.0,
+      "balance_delta": 400.0,
+      "summary": "Sold 29kg onion for Rs 2000, Rs 400 due.",
+      "notes": null,
+      "source_channel": "whatsapp",
+      "capture_mode": "text_message",
+      "parse_source": "ai_structured",
+      "raw_message": "3942 bought 29kg onion for rs2000 and still owes me rs 400",
+      "created_at": "2026-04-28T09:21:06.122068"
+    },
+    {
+      "id": "led_90479f4241",
+      "seller_id": "919971497076",
+      "buyer_name": "raju",
+      "entry_kind": "payment",
+      "product_name": null,
+      "quantity_kg": null,
+      "total_amount": null,
+      "amount_paid": 200.0,
+      "amount_due": 0.0,
+      "balance_delta": -200.0,
+      "summary": "raju paid Rs 200 toward the khata balance. UPI",
+      "notes": "UPI",
+      "source_channel": "api",
+      "capture_mode": "text_message",
+      "parse_source": "rule_based",
+      "raw_message": "raju paid Rs 200 toward the khata balance. UPI",
+      "created_at": "2026-04-28T10:02:34.497889"
+    }
+  ],
+  "buyer_searches": [
+    {
+      "id": "dem_03ff62d3ba",
+      "buyer_id": "buyer-4fb893c4-ed86-468d-a897-30593550563d",
+      "search_query": "tom",
+      "normalized_query": "tom",
+      "detected_product_name": null,
+      "detected_category": null,
+      "max_price_per_kg": 100.0,
+      "source_channel": "api",
+      "created_at": "2026-04-28T09:44:51.302844"
+    },
+    {
+      "id": "dem_fbb3e20036",
+      "buyer_id": "buyer-4fb893c4-ed86-468d-a897-30593550563d",
+      "search_query": "tomatao",
+      "normalized_query": "tomatao",
+      "detected_product_name": null,
+      "detected_category": null,
+      "max_price_per_kg": 100.0,
+      "source_channel": "api",
+      "created_at": "2026-04-28T09:44:51.562645"
+    },
+    {
+      "id": "dem_4bdf270ffa",
+      "buyer_id": "buyer-4fb893c4-ed86-468d-a897-30593550563d",
+      "search_query": "tomat",
+      "normalized_query": "tomat",
+      "detected_product_name": null,
+      "detected_category": null,
+      "max_price_per_kg": 100.0,
+      "source_channel": "api",
+      "created_at": "2026-04-28T09:44:52.489733"
+    },
+    {
+      "id": "dem_2d7dee1d0b",
+      "buyer_id": "buyer-4fb893c4-ed86-468d-a897-30593550563d",
+      "search_query": "tomato",
+      "normalized_query": "tomato",
+      "detected_product_name": "Tomato",
+      "detected_category": "vegetables",
+      "max_price_per_kg": 100.0,
+      "source_channel": "api",
+      "created_at": "2026-04-28T09:44:53.760160"
+    },
+    {
+      "id": "dem_0621effd08",
+      "buyer_id": "buyer-fadf2c53-4a55-44e0-b816-f2999cf88932",
+      "search_query": "tomat",
+      "normalized_query": "tomat",
+      "detected_product_name": null,
+      "detected_category": null,
+      "max_price_per_kg": 100.0,
+      "source_channel": "api",
+      "created_at": "2026-04-28T10:01:24.175975"
+    },
+    {
+      "id": "dem_5baeeabc7d",
+      "buyer_id": "buyer-fadf2c53-4a55-44e0-b816-f2999cf88932",
+      "search_query": "tomato",
+      "normalized_query": "tomato",
+      "detected_product_name": "Tomato",
+      "detected_category": "vegetables",
+      "max_price_per_kg": 100.0,
+      "source_channel": "api",
+      "created_at": "2026-04-28T10:01:24.712003"
+    }
+  ],
+  "notifications": [
+    {
+      "seller_id": "919971497076",
+      "order_id": "listing_confirmation",
+      "text": "Your listing is live. Potato, 30.0 kg, Rs 40.0 per kg.",
+      "audio_base64": null,
+      "channel": "whatsapp",
+      "delivery_status": "sent"
+    },
+    {
+      "seller_id": "919971497076",
+      "order_id": "listing_confirmation",
+      "text": "Your listing is live. Onion, 20.0 kg, Rs 40.0 per kg.",
+      "audio_base64": null,
+      "channel": "whatsapp",
+      "delivery_status": "sent"
+    },
+    {
+      "seller_id": "919971497076",
+      "order_id": "listing_confirmation",
+      "text": "Your listing is live. Onion, 30.0 kg, Rs 40.0 per kg.",
+      "audio_base64": null,
+      "channel": "whatsapp",
+      "delivery_status": "sent"
+    },
+    {
+      "seller_id": "919971497076",
+      "order_id": "listing_confirmation",
+      "text": "Your listing is live. Tomato, 10.0 kg, Rs 5.0 per kg. AI quality grade: Standard (75/100).",
+      "audio_base64": null,
+      "channel": "whatsapp",
+      "delivery_status": "sent"
+    },
+    {
+      "seller_id": "919971497076",
+      "order_id": "ord_fe7a0341b6",
+      "text": "New order: 20 kg Onion from Buyer 3942. Pickup Today, 5:00 PM. Tap Accept or Reject, or reply YES/NO.",
+      "audio_base64": null,
+      "channel": "whatsapp",
+      "delivery_status": "sent"
+    },
+    {
+      "seller_id": "919971497076",
+      "order_id": "ord_43be58b061",
+      "text": "New order: 20 kg Potato from Buyer 3942. Pickup Today, 5:00 PM. Tap Accept or Reject, or reply YES/NO.",
+      "audio_base64": null,
+      "channel": "whatsapp",
+      "delivery_status": "sent"
+    },
+    {
+      "seller_id": "919971497076",
+      "order_id": "listing_confirmation",
+      "text": "Your listing is live. Onion, 30.0 kg, Rs 40.0 per kg.",
+      "audio_base64": null,
+      "channel": "whatsapp",
+      "delivery_status": "sent"
+    },
+    {
+      "seller_id": "919971497076",
+      "order_id": "listing_confirmation",
+      "text": "आपकी लिस्टिंग लाइव हो गई है। Onion, 10.0 किलो, Rs 20.0 प्रति किलो।",
+      "audio_base64": null,
+      "channel": "whatsapp",
+      "delivery_status": "sent"
+    },
+    {
+      "seller_id": "919971497076",
+      "order_id": "listing_confirmation",
+      "text": "Your listing is live. Potato, 30.0 kg, Rs 25.0 per kg. AI quality grade: Standard (78/100).",
+      "audio_base64": null,
+      "channel": "whatsapp",
+      "delivery_status": "sent"
+    },
+    {
+      "seller_id": "919971497076",
+      "order_id": "ord_309fbef5c6",
+      "text": "New order: 1 kg Potato from Buyer 7076. Pickup Today, 5:00 PM. Tap Accept or Reject, or reply YES/NO.",
+      "audio_base64": null,
+      "channel": "whatsapp",
+      "delivery_status": "sent"
+    }
+  ],
+  "insights": [
+    {
+      "seller_id": "919971497076",
+      "headline": "Optimize Potato Sales for Manya",
+      "message": "Manya, with 29kg of potatoes available and 2 recent orders, consider offering a small discount or bundle deal on larger potato purchases to clear inventory and attract more buyers.",
+      "generated_at": "2026-06-08T06:44:13.469192"
+    }
+  ],
+  "seller_profiles": [
+    {
+      "seller_id": "919971497076",
+      "seller_name": "Manya",
+      "store_name": "Gulshan",
+      "preferred_language": "en",
+      "seller_type": "farmer",
+      "default_pickup_location": "Shanti Nagar, Bengaluru, Karnataka, India",
+      "latitude": 12.9577549,
+      "longitude": 77.5992505,
+      "place_id": "ChIJ52kcAs4VrjsROc2UmPe_ifU",
+      "registration_status": "active",
+      "verification_status": "verified",
+      "verification_method": "farmer_registry",
+      "verification_number": "123456",
+      "verification_proof_url": "1058959156611692",
+      "verification_notes": "Demo verification captured through WhatsApp onboarding",
+      "source_channel": "whatsapp",
+      "created_at": "2026-04-28T09:11:46.174356",
+      "updated_at": "2026-06-08T06:39:54.372696"
+    }
+  ],
+  "seller_sessions": [],
+  "otp_requests": [
+    {
+      "id": "otp_b7df3d89a0",
+      "role": "buyer",
+      "phone_number": "919818103942",
+      "otp_code_hash": "bbf228704dfc28557fc3122df801f299b19515be48e093ef47c041c3e6872b92",
+      "delivery_method": "demo_preview",
+      "delivery_status": "preview",
+      "seller_id": null,
+      "note": "Buyer OTP is running in demo preview mode until an SMS provider is connected.",
+      "created_at": "2026-04-28T09:33:11.482482",
+      "expires_at": "2026-04-28T09:38:11.476696",
+      "verified_at": "2026-04-28T09:33:18.465191",
+      "failed_attempts": 0
+    },
+    {
+      "id": "otp_0381644f73",
+      "role": "buyer",
+      "phone_number": "919818103952",
+      "otp_code_hash": "e69401c2d5b1ea2e24823d47bcd4dcfa02a03620c280b2321ca39b34fce06e99",
+      "delivery_method": "demo_preview",
+      "delivery_status": "preview",
+      "seller_id": null,
+      "note": "Buyer OTP is running in demo preview mode until an SMS provider is connected.",
+      "created_at": "2026-04-28T09:35:41.984200",
+      "expires_at": "2026-04-28T09:40:41.970801",
+      "verified_at": "2026-04-28T09:35:54.965388",
+      "failed_attempts": 0
+    },
+    {
+      "id": "otp_a1a5f31e43",
+      "role": "buyer",
+      "phone_number": "919818102723",
+      "otp_code_hash": "0335906047241a33b0cc21756dddac52d5968dab3263afdc172d3aa2eafc7418",
+      "delivery_method": "demo_preview",
+      "delivery_status": "preview",
+      "seller_id": null,
+      "note": "Buyer OTP is running in demo preview mode until an SMS provider is connected.",
+      "created_at": "2026-04-28T09:41:51.462887",
+      "expires_at": "2026-04-28T09:46:51.458744",
+      "verified_at": "2026-04-28T09:41:59.033008",
+      "failed_attempts": 0
+    },
+    {
+      "id": "otp_72e26effa3",
+      "role": "buyer",
+      "phone_number": "919818103872",
+      "otp_code_hash": "7726873975e1e358e3df1e839afdceb1998b36c9c3c5c19831a547a60a4fd8fa",
+      "delivery_method": "demo_preview",
+      "delivery_status": "preview",
+      "seller_id": null,
+      "note": "Buyer OTP is running in demo preview mode until an SMS provider is connected.",
+      "created_at": "2026-04-28T09:44:10.116133",
+      "expires_at": "2026-04-28T09:49:10.111108",
+      "verified_at": "2026-04-28T09:44:20.454182",
+      "failed_attempts": 0
+    },
+    {
+      "id": "otp_4066c19410",
+      "role": "seller",
+      "phone_number": "919971497076",
+      "otp_code_hash": "0a06bc272315f3632c182d667beb51e8d0416455494f6120ad3efd64dd02cff8",
+      "delivery_method": "whatsapp",
+      "delivery_status": "sent",
+      "seller_id": "919971497076",
+      "note": "OTP sent to the seller number over WhatsApp.",
+      "created_at": "2026-04-28T09:46:50.793897",
+      "expires_at": "2026-04-28T09:51:50.785744",
+      "verified_at": null,
+      "failed_attempts": 0
+    },
+    {
+      "id": "otp_d571cfacb7",
+      "role": "buyer",
+      "phone_number": "919818104532",
+      "otp_code_hash": "8ac71d82288a64b65715c9e3d769cc6d38902055473fc55985350d3a558ead34",
+      "delivery_method": "demo_preview",
+      "delivery_status": "preview",
+      "seller_id": null,
+      "note": "Buyer OTP is running in demo preview mode until an SMS provider is connected.",
+      "created_at": "2026-04-28T09:55:43.960042",
+      "expires_at": "2026-04-28T10:00:43.952817",
+      "verified_at": "2026-04-28T09:55:54.119127",
+      "failed_attempts": 0
+    },
+    {
+      "id": "otp_38ff3c26a9",
+      "role": "buyer",
+      "phone_number": "919818103952",
+      "otp_code_hash": "27e0b1170d193f47a70a0f5a539c191d9eb56b56e3f800250d4e2f3063cafc4e",
+      "delivery_method": "demo_preview",
+      "delivery_status": "preview",
+      "seller_id": null,
+      "note": "Buyer OTP is running in demo preview mode until an SMS provider is connected.",
+      "created_at": "2026-04-28T10:00:41.221318",
+      "expires_at": "2026-04-28T10:05:41.186798",
+      "verified_at": "2026-04-28T10:00:47.249876",
+      "failed_attempts": 0
+    },
+    {
+      "id": "otp_17a7f20613",
+      "role": "seller",
+      "phone_number": "919971497076",
+      "otp_code_hash": "1b52a618d838cdd9ebaf05e01fd3224312ad935427412d574ba6bd97e454f498",
+      "delivery_method": "whatsapp",
+      "delivery_status": "sent",
+      "seller_id": "919971497076",
+      "note": "OTP sent to the seller number over WhatsApp.",
+      "created_at": "2026-04-28T10:01:43.856874",
+      "expires_at": "2026-04-28T10:06:43.856764",
+      "verified_at": "2026-04-28T10:02:05.342280",
+      "failed_attempts": 0
+    },
+    {
+      "id": "otp_a7663a57cb",
+      "role": "seller",
+      "phone_number": "919971497076",
+      "otp_code_hash": "f6c7609718dec41ea97643fb14659f4a637f1c1c12626253acf1b2b5fb77b109",
+      "delivery_method": "whatsapp",
+      "delivery_status": "sent",
+      "seller_id": "919971497076",
+      "note": "OTP sent to the seller number over WhatsApp.",
+      "created_at": "2026-06-07T16:57:08.398981",
+      "expires_at": "2026-06-07T17:02:08.395177",
+      "verified_at": "2026-06-07T16:57:20.131684",
+      "failed_attempts": 0
+    },
+    {
+      "id": "otp_b74a937343",
+      "role": "seller",
+      "phone_number": "919971497076",
+      "otp_code_hash": "d736984d82fcd87aa425452b4ba3b2d0469ed5bb00b5c4c9f3fa9166dfe3d480",
+      "delivery_method": "whatsapp",
+      "delivery_status": "sent",
+      "seller_id": "919971497076",
+      "note": "OTP sent to the seller number over WhatsApp.",
+      "created_at": "2026-06-07T17:04:39.950433",
+      "expires_at": "2026-06-07T17:09:39.944175",
+      "verified_at": "2026-06-07T17:04:50.802809",
+      "failed_attempts": 0
+    },
+    {
+      "id": "otp_91ef308c9e",
+      "role": "seller",
+      "phone_number": "919971497076",
+      "otp_code_hash": "c1751451bf17423b3f8372e172192fa6598798a5d97d60a7c31fef0e44d0a860",
+      "delivery_method": "whatsapp",
+      "delivery_status": "sent",
+      "seller_id": "919971497076",
+      "note": "OTP sent to the seller number over WhatsApp.",
+      "created_at": "2026-06-08T06:41:43.213576",
+      "expires_at": "2026-06-08T06:46:43.212777",
+      "verified_at": "2026-06-08T06:41:54.503058",
+      "failed_attempts": 0
+    },
+    {
+      "id": "otp_7499abbcab",
+      "role": "buyer",
+      "phone_number": "919971497076",
+      "otp_code_hash": "aa678b576fa2e126c68b49afa1070d4027e5938f017b6138f9355d5c387c8417",
+      "delivery_method": "demo_preview",
+      "delivery_status": "preview",
+      "seller_id": null,
+      "note": "Buyer OTP is running in demo preview mode until an SMS provider is connected.",
+      "created_at": "2026-06-08T06:42:54.983883",
+      "expires_at": "2026-06-08T06:47:54.983724",
+      "verified_at": "2026-06-08T06:43:08.448273",
+      "failed_attempts": 1
+    }
+  ],
+  "demand_alert_fingerprints": {},
+  "whatsapp_message_fingerprints": {
+    "596377698f76694441e0ee2cbffe1bac44315bdc084f5802c134dad8171996c5": {
+      "status": "processing",
+      "updated_at": "2026-06-08T06:39:46.222814+00:00"
+    },
+    "1044489caceebad232669cdabdcd31435e9d993871685833334ebf5a9301fa7a": {
+      "status": "processing",
+      "updated_at": "2026-06-08T06:39:54.432836+00:00"
+    },
+    "72e9c6a82e382a984f3eae31fc75ce28db7ed40f1112ee0730d463f0aabd580d": {
+      "status": "processed",
+      "updated_at": "2026-06-08T06:41:24.355531+00:00"
+    }
+  },
+  "whatsapp_message_states": {
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0FBMEE2QjlDRjYyOUEzRDFDRkQA": {
+      "status": "processed",
+      "updated_at": "2026-04-28T09:11:48.321253+00:00"
+    },
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0EwRTYzRTQ4MUNDNzNDNzU1MTAA": {
+      "status": "processed",
+      "updated_at": "2026-04-28T09:12:47.754981+00:00"
+    },
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0FGMzFFMUZBRUIyMzdGMTVBNUQA": {
+      "status": "processed",
+      "updated_at": "2026-04-28T09:13:29.885914+00:00"
+    },
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0FENjlFQTM1NDRDRjM3NkVCNjcA": {
+      "status": "processed",
+      "updated_at": "2026-04-28T09:13:38.291627+00:00"
+    },
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0E5OUQ0REM5MkFGNzU2MDMyODcA": {
+      "status": "processed",
+      "updated_at": "2026-04-28T09:13:48.898870+00:00"
+    },
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0ExMUZBNEU5NDNENDNFNzQ3NTEA": {
+      "status": "processed",
+      "updated_at": "2026-04-28T09:13:59.009394+00:00"
+    },
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0E1REZBQTJFODZDMEM4OEYzMzQA": {
+      "status": "processed",
+      "updated_at": "2026-04-28T09:14:11.157423+00:00"
+    },
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0FCOEExRkJEQjkzNzlGOTJCRjgA": {
+      "status": "processed",
+      "updated_at": "2026-04-28T09:14:20.008818+00:00"
+    },
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0FBRDU4RjZBMjY0NzAzQzU5M0IA": {
+      "status": "processed",
+      "updated_at": "2026-04-28T09:14:41.734642+00:00"
+    },
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0EyREQyMkRBN0Q1RDNGODJBNjAA": {
+      "status": "processed",
+      "updated_at": "2026-04-28T09:15:00.834839+00:00"
+    },
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0E2QTA2REUzQkFBQ0QzOTY3MzkA": {
+      "status": "processed",
+      "updated_at": "2026-04-28T09:15:28.273240+00:00"
+    },
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0E0ODE2MzRFQkI2RTU0RTY0QkEA": {
+      "status": "processed",
+      "updated_at": "2026-04-28T09:15:46.884791+00:00"
+    },
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0FDQ0NCRDVBNUU1RTY0Q0I3QUMA": {
+      "status": "processed",
+      "updated_at": "2026-04-28T09:15:59.250177+00:00"
+    },
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0EyNDk1QTgwN0NFNEYzRDkxRjUA": {
+      "status": "processed",
+      "updated_at": "2026-04-28T09:16:18.987766+00:00"
+    },
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0E1RTc0Q0Q4NEE3QkM2QkZFQTMA": {
+      "status": "processed",
+      "updated_at": "2026-04-28T09:16:44.198580+00:00"
+    },
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0ExQ0E0RTA1OEQzNTk1NjJBOUYA": {
+      "status": "processed",
+      "updated_at": "2026-04-28T09:17:45.604284+00:00"
+    },
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0FDMzE4RkM2RjkzQTMwRDIxOEIA": {
+      "status": "processed",
+      "updated_at": "2026-04-28T09:18:11.379545+00:00"
+    },
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0E5QkREMEE1N0JCQzU5MTlFRjUA": {
+      "status": "processed",
+      "updated_at": "2026-04-28T09:18:21.854121+00:00"
+    },
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0E1RjMwQzBCNjEzNThCQTY0NjAA": {
+      "status": "processed",
+      "updated_at": "2026-04-28T09:18:30.343498+00:00"
+    },
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0E1RUFEMEI5NTNERTg0MTFGRDQA": {
+      "status": "processed",
+      "updated_at": "2026-04-28T09:18:43.573671+00:00"
+    },
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0FDMDgxNjYwNkExQUVDRjQ3MEYA": {
+      "status": "processed",
+      "updated_at": "2026-04-28T09:19:19.824837+00:00"
+    },
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0EyMTUxNzQ5NkFFRjE3OUU5OTAA": {
+      "status": "processed",
+      "updated_at": "2026-04-28T09:19:30.829199+00:00"
+    },
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0E4RkRDMEE5Qzg0MjUyODE0QTkA": {
+      "status": "processed",
+      "updated_at": "2026-04-28T09:19:40.071371+00:00"
+    },
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0EwQUIxRjUyNDQzODY2MUE5NTgA": {
+      "status": "processed",
+      "updated_at": "2026-04-28T09:19:48.354918+00:00"
+    },
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0FDMTZFMzk3MTFGNjQ3NDdFMjYA": {
+      "status": "processed",
+      "updated_at": "2026-04-28T09:20:00.882909+00:00"
+    },
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0ExQTc1OTIyOTlCQUI3OEE4M0QA": {
+      "status": "processed",
+      "updated_at": "2026-04-28T09:20:04.055558+00:00"
+    },
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0FEQzk3ODM5RERDNTg1RUQyNEEA": {
+      "status": "processed",
+      "updated_at": "2026-04-28T09:20:10.128288+00:00"
+    },
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0FGNjBDMkJGNUYyRDFGNDUyMDEA": {
+      "status": "processed",
+      "updated_at": "2026-04-28T09:21:09.076186+00:00"
+    },
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0ExNkQ5RDQyOTYwRjQ3OTYyQUUA": {
+      "status": "processed",
+      "updated_at": "2026-04-28T09:21:19.886776+00:00"
+    },
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0E4M0RDMEI4OUNDM0VGQ0EyQjgA": {
+      "status": "processed",
+      "updated_at": "2026-04-28T09:21:46.657227+00:00"
+    },
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0E1N0Q4Q0VCMzNCNDA4OTcxMDMA": {
+      "status": "processed",
+      "updated_at": "2026-04-28T09:22:00.601148+00:00"
+    },
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0EzNDA2Njg5QTAwRTNENjY5MDUA": {
+      "status": "processed",
+      "updated_at": "2026-04-28T10:04:02.944746+00:00"
+    },
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0E5NjFBNTA5QTZEOEVBNkQ0OEYA": {
+      "status": "processed",
+      "updated_at": "2026-06-08T05:58:45.026107+00:00"
+    },
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0FGNjVFOTlGQUUzMzgxN0IzNTQA": {
+      "status": "processed",
+      "updated_at": "2026-06-08T05:58:55.572192+00:00"
+    },
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0ExRDUzMTZDRjAwMDA5RDlCNzMA": {
+      "status": "processed",
+      "updated_at": "2026-06-08T05:59:04.544933+00:00"
+    },
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0FEQkQ1RUFCNkVEMTM3QzczOTQA": {
+      "status": "processed",
+      "updated_at": "2026-06-08T05:59:40.459920+00:00"
+    },
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0E2NkYwNjYwMEI3MTZFQkQ5QTgA": {
+      "status": "processed",
+      "updated_at": "2026-06-08T06:00:11.813438+00:00"
+    },
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0E3NTFCQURFREYxMkQxNjA2N0UA": {
+      "status": "processed",
+      "updated_at": "2026-06-08T06:00:30.926550+00:00"
+    },
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0FBRjFGNzJFOTg2NzdBMEI1N0EA": {
+      "status": "processed",
+      "updated_at": "2026-06-08T06:01:01.536689+00:00"
+    },
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0E0MzMzMzQ3ODUyNTgwQUNFRDAA": {
+      "status": "processed",
+      "updated_at": "2026-06-08T06:13:57.186096+00:00"
+    },
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0EzRUQ0Nzc1QzhBQzg2MzQyQzUA": {
+      "status": "processed",
+      "updated_at": "2026-06-08T06:29:06.166132+00:00"
+    },
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0E1M0NEOUIzMTAxQkRBQjRGODAA": {
+      "status": "processed",
+      "updated_at": "2026-06-08T06:29:30.127101+00:00"
+    },
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0ExQUZEMTA0OThFMzdGOTUxNDMA": {
+      "status": "processed",
+      "updated_at": "2026-06-08T06:29:59.179607+00:00"
+    },
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0EyMzcxNUM2QUVDQzhBODAwM0YA": {
+      "status": "processed",
+      "updated_at": "2026-06-08T06:30:29.824747+00:00"
+    },
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0EwNEJEMDkyNTI1NzVCMkY5MTQA": {
+      "status": "processed",
+      "updated_at": "2026-06-08T06:30:41.805017+00:00"
+    },
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0E0M0IzRTlCREY1NkNFMTUyMUEA": {
+      "status": "processed",
+      "updated_at": "2026-06-08T06:30:58.704533+00:00"
+    },
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0EyRTFFMjBBNDg1QjExMzc0RkMA": {
+      "status": "processed",
+      "updated_at": "2026-06-08T06:31:18.265617+00:00"
+    },
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0FFNTM5OUZBQTQ0RUM5OTI4QTIA": {
+      "status": "processed",
+      "updated_at": "2026-06-08T06:31:37.794327+00:00"
+    },
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0E1QUQ3REVFMkFCNTE0RjhDM0EA": {
+      "status": "processed",
+      "updated_at": "2026-06-08T06:31:56.186903+00:00"
+    },
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0E1QTQ4OUFBNTdBRDQ0RjRDRDgA": {
+      "status": "processed",
+      "updated_at": "2026-06-08T06:32:02.394810+00:00"
+    },
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0E4MEIxNjFCMjNCQzk5NDE4MjYA": {
+      "status": "processed",
+      "updated_at": "2026-06-08T06:32:10.769177+00:00"
+    },
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0FDODI3M0MxN0I1NjZCQkQ4RUQA": {
+      "status": "processed",
+      "updated_at": "2026-06-08T06:32:35.512076+00:00"
+    },
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0FERjdEQ0E0NzU2NTBCQTZEQ0QA": {
+      "status": "processed",
+      "updated_at": "2026-06-08T06:32:44.967821+00:00"
+    },
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0FERjlCQUE0NEREMDhCRUU2MkIA": {
+      "status": "processed",
+      "updated_at": "2026-06-08T06:32:49.749964+00:00"
+    },
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0EzQkY1NUE5ODI0M0ZCNzRFNTcA": {
+      "status": "processed",
+      "updated_at": "2026-06-08T06:33:09.482842+00:00"
+    },
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0E1QkNCMUYxQjMwMEFGMjY3QzQA": {
+      "status": "processed",
+      "updated_at": "2026-06-08T06:37:16.371515+00:00"
+    },
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0FDMTc4MDFGNjBBRDM3RjFENUQA": {
+      "status": "processed",
+      "updated_at": "2026-06-08T06:37:27.779115+00:00"
+    },
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0E4RDEzREI3MzQ4OUU4QjU1RDgA": {
+      "status": "processed",
+      "updated_at": "2026-06-08T06:37:55.049485+00:00"
+    },
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0FGODY2QUM4ODQ3MzYzMTJBNzcA": {
+      "status": "processed",
+      "updated_at": "2026-06-08T06:38:02.560388+00:00"
+    },
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0FFOTlCMTBERTdCMTUzMkMwQkQA": {
+      "status": "processed",
+      "updated_at": "2026-06-08T06:38:21.919601+00:00"
+    },
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0FBREFDODRCMjkxNThCNEU5NEUA": {
+      "status": "processed",
+      "updated_at": "2026-06-08T06:38:30.251696+00:00"
+    },
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0E0MTYwNzQyMDAxODhCQzIyRjUA": {
+      "status": "processed",
+      "updated_at": "2026-06-08T06:39:26.786063+00:00"
+    },
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0FFRTNCMDM4NURDNzU4RThGNzkA": {
+      "status": "processed",
+      "updated_at": "2026-06-08T06:39:37.605164+00:00"
+    },
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0ExRkI0ODc1NDI1QUE0N0I4Q0QA": {
+      "status": "processed",
+      "updated_at": "2026-06-08T06:39:48.281956+00:00"
+    },
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0FFODNFRUVBMzNFRjZDRjlFQjAA": {
+      "status": "processed",
+      "updated_at": "2026-06-08T06:39:57.698240+00:00"
+    },
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0FGODlCQTk4MzYwOUFDMjA1NzgA": {
+      "status": "processed",
+      "updated_at": "2026-06-08T06:40:08.172584+00:00"
+    },
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0FDQ0ZFREUxNkJFMzMwNEY0ODYA": {
+      "status": "processed",
+      "updated_at": "2026-06-08T06:40:57.788579+00:00"
+    },
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0FBMTNDOTVFRkMyQUEwMjQ0MzIA": {
+      "status": "processed",
+      "updated_at": "2026-06-08T06:41:24.454342+00:00"
+    },
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgWM0VCMEU2MjMyQkYyM0Q0RkQ3NUM0NgA=": {
+      "status": "processed",
+      "updated_at": "2026-06-08T06:44:16.173500+00:00"
+    }
+  },
+  "processed_whatsapp_message_ids": [
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0FBMEE2QjlDRjYyOUEzRDFDRkQA",
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0EwRTYzRTQ4MUNDNzNDNzU1MTAA",
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0FGMzFFMUZBRUIyMzdGMTVBNUQA",
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0FENjlFQTM1NDRDRjM3NkVCNjcA",
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0E5OUQ0REM5MkFGNzU2MDMyODcA",
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0ExMUZBNEU5NDNENDNFNzQ3NTEA",
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0E1REZBQTJFODZDMEM4OEYzMzQA",
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0FCOEExRkJEQjkzNzlGOTJCRjgA",
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0FBRDU4RjZBMjY0NzAzQzU5M0IA",
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0EyREQyMkRBN0Q1RDNGODJBNjAA",
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0E2QTA2REUzQkFBQ0QzOTY3MzkA",
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0E0ODE2MzRFQkI2RTU0RTY0QkEA",
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0FDQ0NCRDVBNUU1RTY0Q0I3QUMA",
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0EyNDk1QTgwN0NFNEYzRDkxRjUA",
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0E1RTc0Q0Q4NEE3QkM2QkZFQTMA",
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0ExQ0E0RTA1OEQzNTk1NjJBOUYA",
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0FDMzE4RkM2RjkzQTMwRDIxOEIA",
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0E5QkREMEE1N0JCQzU5MTlFRjUA",
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0E1RjMwQzBCNjEzNThCQTY0NjAA",
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0E1RUFEMEI5NTNERTg0MTFGRDQA",
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0FDMDgxNjYwNkExQUVDRjQ3MEYA",
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0EyMTUxNzQ5NkFFRjE3OUU5OTAA",
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0E4RkRDMEE5Qzg0MjUyODE0QTkA",
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0EwQUIxRjUyNDQzODY2MUE5NTgA",
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0FDMTZFMzk3MTFGNjQ3NDdFMjYA",
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0ExQTc1OTIyOTlCQUI3OEE4M0QA",
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0FEQzk3ODM5RERDNTg1RUQyNEEA",
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0FGNjBDMkJGNUYyRDFGNDUyMDEA",
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0ExNkQ5RDQyOTYwRjQ3OTYyQUUA",
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0E4M0RDMEI4OUNDM0VGQ0EyQjgA",
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0E1N0Q4Q0VCMzNCNDA4OTcxMDMA",
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0EzNDA2Njg5QTAwRTNENjY5MDUA",
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0E5NjFBNTA5QTZEOEVBNkQ0OEYA",
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0FGNjVFOTlGQUUzMzgxN0IzNTQA",
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0ExRDUzMTZDRjAwMDA5RDlCNzMA",
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0FEQkQ1RUFCNkVEMTM3QzczOTQA",
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0E2NkYwNjYwMEI3MTZFQkQ5QTgA",
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0E3NTFCQURFREYxMkQxNjA2N0UA",
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0FBRjFGNzJFOTg2NzdBMEI1N0EA",
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0E0MzMzMzQ3ODUyNTgwQUNFRDAA",
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0EzRUQ0Nzc1QzhBQzg2MzQyQzUA",
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0E1M0NEOUIzMTAxQkRBQjRGODAA",
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0ExQUZEMTA0OThFMzdGOTUxNDMA",
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0EyMzcxNUM2QUVDQzhBODAwM0YA",
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0EwNEJEMDkyNTI1NzVCMkY5MTQA",
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0E0M0IzRTlCREY1NkNFMTUyMUEA",
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0EyRTFFMjBBNDg1QjExMzc0RkMA",
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0FFNTM5OUZBQTQ0RUM5OTI4QTIA",
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0E1QUQ3REVFMkFCNTE0RjhDM0EA",
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0E1QTQ4OUFBNTdBRDQ0RjRDRDgA",
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0E4MEIxNjFCMjNCQzk5NDE4MjYA",
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0FDODI3M0MxN0I1NjZCQkQ4RUQA",
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0FERjdEQ0E0NzU2NTBCQTZEQ0QA",
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0FERjlCQUE0NEREMDhCRUU2MkIA",
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0EzQkY1NUE5ODI0M0ZCNzRFNTcA",
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0E1QkNCMUYxQjMwMEFGMjY3QzQA",
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0FDMTc4MDFGNjBBRDM3RjFENUQA",
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0E4RDEzREI3MzQ4OUU4QjU1RDgA",
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0FGODY2QUM4ODQ3MzYzMTJBNzcA",
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0FFOTlCMTBERTdCMTUzMkMwQkQA",
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0FBREFDODRCMjkxNThCNEU5NEUA",
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0E0MTYwNzQyMDAxODhCQzIyRjUA",
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0FFRTNCMDM4NURDNzU4RThGNzkA",
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0ExRkI0ODc1NDI1QUE0N0I4Q0QA",
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0FFODNFRUVBMzNFRjZDRjlFQjAA",
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0FGODlCQTk4MzYwOUFDMjA1NzgA",
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0FDQ0ZFREUxNkJFMzMwNEY0ODYA",
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0FBMTNDOTVFRkMyQUEwMjQ0MzIA",
+    "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgWM0VCMEU2MjMyQkYyM0Q0RkQ3NUM0NgA="
+  ]
+}

@@ -1,0 +1,46 @@
+# Secrets and local environment
+backend/.env
+frontend/.env
+*.local
+*.secret
+bolbazaar-493217-*.json
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.pytest-run*/
+.pytest-tmp*/
+.venv/
+venv/
+env/
+backend/.venv-mac/
+backend/.venv/
+backend/.venv311/
+backend/.pytest-*/
+backend/pytest_run_*/
+backend/tmp*/
+
+# Node / frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+frontend/*.log
+frontend/*.err
+frontend/*.tsbuildinfo
+
+# Test and runtime data
+backend/pytest-temp/
+backend/data/*.tmp
+backend/*.log
+backend/*.err
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
