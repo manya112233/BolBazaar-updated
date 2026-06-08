@@ -1,6 +1,11 @@
+import { useState, useEffect } from 'react';
 import type { AppLanguage } from '../App';
-import type { AuthSession, BuyerDemandSearchRequest, DemandPoolOpportunity, Insight, Listing, Notification, Order, SellerDashboard, SellerProfile } from '../types';
+import type { AuthSession, BuyerDemandSearchRequest, DemandPoolOpportunity, DemandRequest, DemandRequestCreate, Delivery, Insight, Listing, Notification, Order, SellerDashboard, SellerProfile } from '../types';
 import BuyerOverview from './dashboard/BuyerOverview';
+import DemandRequestForm from './DemandRequestForm';
+import MyDemandsPanel from './MyDemandsPanel';
+
+type BuyerTab = 'browse' | 'post_demand' | 'my_demands';
 
 export default function BuyerWorkspace(props: {
   sectionId: string;
@@ -22,6 +27,54 @@ export default function BuyerWorkspace(props: {
   onMaxPriceChange: (value: number) => void;
   onOrder: (listing: Listing) => void;
   onCreateDemand: (payload: BuyerDemandSearchRequest) => Promise<void>;
+  // New delivery-system props (optional for backward compat)
+  buyerDemands?: DemandRequest[];
+  buyerDeliveries?: Delivery[];
+  onPostDemandRequest?: (payload: DemandRequestCreate) => Promise<void>;
 }) {
-  return <BuyerOverview {...props} />;
+  const [buyerTab, setBuyerTab] = useState<BuyerTab>('browse');
+
+  useEffect(() => {
+    setBuyerTab('browse');
+  }, [props.sectionId]);
+
+  const tabs: { id: BuyerTab; label: string; badge?: number }[] = [
+    { id: 'browse', label: '🛒 Browse' },
+    { id: 'post_demand', label: '📋 Post Demand' },
+    { id: 'my_demands', label: '📦 My Demands', badge: (props.buyerDemands?.length || 0) + (props.buyerDeliveries?.length || 0) },
+  ];
+
+  return (
+    <div>
+      <div className="workspace-tabs">
+        {tabs.map((tab) => (
+          <button
+            key={tab.id}
+            className={`workspace-tab ${buyerTab === tab.id ? 'workspace-tab-active' : ''}`}
+            onClick={() => setBuyerTab(tab.id)}
+          >
+            {tab.label}
+            {tab.badge != null && tab.badge > 0 && <span className="tab-badge">{tab.badge}</span>}
+          </button>
+        ))}
+      </div>
+
+      {buyerTab === 'browse' && <BuyerOverview {...props} />}
+
+      {buyerTab === 'post_demand' && props.onPostDemandRequest && (
+        <DemandRequestForm
+          buyerId={props.session.phone_number}
+          buyerName={props.session.store_name || `Buyer ${props.session.phone_number.slice(-4)}`}
+          onSubmit={props.onPostDemandRequest}
+        />
+      )}
+
+      {buyerTab === 'my_demands' && (
+        <MyDemandsPanel
+          demands={props.buyerDemands || []}
+          deliveries={props.buyerDeliveries || []}
+        />
+      )}
+    </div>
+  );
 }

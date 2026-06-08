@@ -40,6 +40,13 @@ class Settings(BaseSettings):
     demand_push_window_minutes: int = Field(default=30, ge=1, alias='DEMAND_PUSH_WINDOW_MINUTES')
     demand_push_cooldown_minutes: int = Field(default=30, ge=1, alias='DEMAND_PUSH_COOLDOWN_MINUTES')
 
+    pool_window_hours: int = Field(default=12, ge=1, alias='POOL_WINDOW_HOURS')
+    pool_min_buyers: int = Field(default=2, ge=1, alias='POOL_MIN_BUYERS')
+    pool_geo_bucket_decimals: int = Field(default=2, alias='POOL_GEO_BUCKET_DECIMALS')
+    delivery_base_fee: float = Field(default=20.0, alias='DELIVERY_BASE_FEE')
+    delivery_per_km_fee: float = Field(default=8.0, alias='DELIVERY_PER_KM_FEE')
+    delivery_free_radius_km: float = Field(default=1.0, alias='DELIVERY_FREE_RADIUS_KM')
+
     model_config = SettingsConfigDict(env_file='.env', env_file_encoding='utf-8', extra='ignore')
 
 

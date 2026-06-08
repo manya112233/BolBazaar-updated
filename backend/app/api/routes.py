@@ -9,7 +9,7 @@ from fastapi.responses import PlainTextResponse
 from app.dependencies import get_auth_service, get_marketplace, get_store
 from datetime import datetime, timedelta
 
-from app.schemas import BuyerDemandEvent, BuyerDemandSearchIn, BuyerDemandSearchResponse, DemandPoolResponse, DemoSeedResponse, LedgerPaymentCreate, ListingResponse, OrderCreate, OrderDecisionIn, OtpRequestIn, OtpRequestResponse, OtpVerifyIn, OtpVerifyResponse, SellerLedgerView, SellerMessageIn, SellerProfile
+from app.schemas import BuyerDemandEvent, BuyerDemandSearchIn, BuyerDemandSearchResponse, DemandPoolResponse, DemoSeedResponse, LedgerPaymentCreate, ListingResponse, OrderCreate, OrderDecisionIn, OtpRequestIn, OtpRequestResponse, OtpVerifyIn, OtpVerifyResponse, SellerLedgerView, SellerMessageIn, SellerProfile, DeliveryAdvanceIn, DemandRequestCreate, PoolCommitIn
 from app.services.auth_service import AuthService
 from app.services.marketplace import MarketplaceService
 from app.services.seller_flow import SellerFlowService
@@ -390,3 +390,74 @@ async def whatsapp_inbound(
 
     logger.info('Handled WhatsApp message %s for seller %s', message_id or '<no-id>', seller_id)
     return result
+
+
+@router.post('/buyers/demand-requests')
+def create_demand_request(
+    payload: DemandRequestCreate,
+    marketplace: MarketplaceService = Depends(get_marketplace),
+) -> dict:
+    request = marketplace.create_demand_request(payload)
+    return {'ok': True, 'request': request}
+
+
+@router.get('/buyers/{buyer_id}/demand-requests')
+def list_buyer_demand_requests(
+    buyer_id: str,
+    marketplace: MarketplaceService = Depends(get_marketplace),
+) -> dict:
+    return {'items': marketplace.list_buyer_demand_requests(buyer_id)}
+
+
+@router.get('/commit-pools')
+def list_commit_pools(
+    seller_id: str | None = Query(default=None),
+    marketplace: MarketplaceService = Depends(get_marketplace),
+) -> dict:
+    return {'items': marketplace.list_commit_pools(seller_id=seller_id)}
+
+
+@router.get('/commit-pools/{pool_id}')
+def get_commit_pool(
+    pool_id: str,
+    store: Any = Depends(get_store),
+) -> dict:
+    pool = store.get_commit_pool(pool_id)
+    if pool is None:
+        raise HTTPException(status_code=404, detail='Commit pool not found')
+    return pool.model_dump()
+
+
+@router.post('/commit-pools/{pool_id}/commit')
+def commit_pool(
+    pool_id: str,
+    payload: PoolCommitIn,
+    marketplace: MarketplaceService = Depends(get_marketplace),
+) -> dict:
+    try:
+        result = marketplace.commit_to_pool(pool_id, payload)
+        return {'ok': True, **result}
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.get('/deliveries')
+def list_deliveries(
+    seller_id: str | None = Query(default=None),
+    buyer_id: str | None = Query(default=None),
+    marketplace: MarketplaceService = Depends(get_marketplace),
+) -> dict:
+    return {'items': marketplace.list_deliveries(seller_id=seller_id, buyer_id=buyer_id)}
+
+
+@router.post('/deliveries/{delivery_id}/advance')
+def advance_delivery(
+    delivery_id: str,
+    payload: DeliveryAdvanceIn,
+    marketplace: MarketplaceService = Depends(get_marketplace),
+) -> dict:
+    try:
+        return {'ok': True, 'delivery': marketplace.advance_delivery(delivery_id, payload.status)}
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+

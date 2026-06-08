@@ -22,6 +22,10 @@ SellerType = Literal['farmer', 'aggregator', 'fpo', 'trader']
 LedgerEntryKind = Literal['sale', 'payment']
 LedgerParseSource = Literal['rule_based', 'ai_structured']
 LedgerCaptureMode = Literal['voice_note', 'text_message']
+DeliveryMode = Literal['pickup', 'delivery']
+FulfillmentDeliveryStatus = Literal['pending', 'accepted', 'packed', 'out_for_delivery', 'delivered', 'cancelled']
+DemandRequestStatus = Literal['open', 'pooled', 'committed', 'fulfilled', 'cancelled', 'expired']
+DemandPoolStatus = Literal['forming', 'open', 'committed', 'fulfilling', 'fulfilled', 'expired']
 SellerVerificationMethod = Literal[
     'farmer_registry',
     'pm_kisan',
@@ -250,6 +254,8 @@ class OrderCreate(BaseModel):
     quantity_kg: float = Field(gt=0)
     pickup_time: str
     phone: str | None = None
+    delivery_mode: DeliveryMode = 'pickup'
+    delivery_address: str | None = None
 
 
 class Order(BaseModel):
@@ -265,6 +271,11 @@ class Order(BaseModel):
     unit_price: float
     total_price: float
     status: OrderStatus = 'pending'
+    delivery_mode: DeliveryMode = 'pickup'
+    delivery_address: str | None = None
+    delivery_fee: float = 0
+    fulfillment_status: FulfillmentDeliveryStatus = 'pending'
+    pool_id: str | None = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 
@@ -391,3 +402,103 @@ class SellerNotification(BaseModel):
     audio_base64: str | None = None
     channel: str = 'whatsapp'
     delivery_status: str = 'simulated'
+
+
+class DemandRequestCreate(BaseModel):
+    buyer_id: str = Field(min_length=2, max_length=120)
+    buyer_name: str = Field(min_length=1, max_length=120)
+    product_query: str = Field(min_length=2, max_length=200)
+    quantity_kg: float = Field(gt=0)
+    max_price_per_kg: float | None = Field(default=None, gt=0)
+    delivery_mode: DeliveryMode = 'delivery'
+    delivery_address: str = Field(min_length=2, max_length=300)
+    needed_by: str = Field(min_length=2, max_length=120)
+    phone: str | None = None
+
+
+class DemandRequest(BaseModel):
+    id: str = Field(default_factory=lambda: f'dmr_{uuid4().hex[:10]}')
+    buyer_id: str
+    buyer_name: str
+    product_query: str
+    product_name: str
+    category: ProductCategory = 'vegetables'
+    quantity_kg: float = Field(gt=0)
+    max_price_per_kg: float | None = None
+    delivery_mode: DeliveryMode = 'delivery'
+    delivery_address: str
+    latitude: float | None = None
+    longitude: float | None = None
+    place_id: str | None = None
+    locality_key: str = 'unknown'
+    needed_by: str
+    phone: str | None = None
+    status: DemandRequestStatus = 'open'
+    pool_id: str | None = None
+    order_id: str | None = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class PoolMember(BaseModel):
+    request_id: str
+    buyer_id: str
+    buyer_name: str
+    quantity_kg: float
+    delivery_address: str
+    latitude: float | None = None
+    longitude: float | None = None
+    max_price_per_kg: float | None = None
+
+
+class CommitDemandPool(BaseModel):   # persisted, commitable pool (distinct from DemandPoolOpportunity radar)
+    id: str = Field(default_factory=lambda: f'cpool_{uuid4().hex[:10]}')
+    product_name: str
+    category: ProductCategory = 'vegetables'
+    locality_key: str
+    locality_label: str
+    total_quantity_kg: float = 0
+    buyer_count: int = 0
+    suggested_max_price_per_kg: float | None = None
+    centroid_lat: float | None = None
+    centroid_lng: float | None = None
+    members: list[PoolMember] = Field(default_factory=list)
+    status: DemandPoolStatus = 'open'
+    committed_seller_id: str | None = None
+    committed_seller_name: str | None = None
+    committed_price_per_kg: float | None = None
+    window_started_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class PoolCommitIn(BaseModel):
+    seller_id: str
+    listing_id: str
+    price_per_kg: float | None = Field(default=None, gt=0)
+
+
+class Delivery(BaseModel):
+    id: str = Field(default_factory=lambda: f'dlv_{uuid4().hex[:10]}')
+    order_id: str
+    pool_id: str | None = None
+    seller_id: str
+    seller_name: str
+    buyer_id: str | None = None
+    buyer_name: str
+    product_name: str
+    quantity_kg: float
+    delivery_mode: DeliveryMode = 'delivery'
+    delivery_address: str | None = None
+    latitude: float | None = None
+    longitude: float | None = None
+    distance_km: float | None = None
+    delivery_fee: float = 0
+    status: FulfillmentDeliveryStatus = 'accepted'
+    eta: str | None = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class DeliveryAdvanceIn(BaseModel):
+    status: FulfillmentDeliveryStatus
+

@@ -23,6 +23,8 @@ export default function OrderModal({
     quantity_kg: number;
     pickup_time: string;
     phone?: string;
+    delivery_mode?: 'pickup' | 'delivery';
+    delivery_address?: string;
   }) => Promise<void>;
 }) {
   const [buyerName, setBuyerName] = useState(defaultBuyerName || 'FreshBite Restaurant');
@@ -30,6 +32,8 @@ export default function OrderModal({
   const [quantity, setQuantity] = useState(20);
   const [pickupTime, setPickupTime] = useState('Today, 5:00 PM');
   const [phone, setPhone] = useState(defaultBuyerPhone || '');
+  const [deliveryMode, setDeliveryMode] = useState<'pickup' | 'delivery'>('pickup');
+  const [deliveryAddress, setDeliveryAddress] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   const total = useMemo(() => (quantity * listing.price_per_kg).toFixed(2), [quantity, listing.price_per_kg]);
@@ -68,6 +72,19 @@ export default function OrderModal({
             <label className="label">Phone</label>
             <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Optional" />
           </div>
+          <div>
+            <label className="label">Delivery mode</label>
+            <select value={deliveryMode} onChange={(e) => setDeliveryMode(e.target.value as typeof deliveryMode)}>
+              <option value="pickup">📦 Pickup</option>
+              <option value="delivery">🚚 Delivery</option>
+            </select>
+          </div>
+          {deliveryMode === 'delivery' && (
+            <div style={{ gridColumn: 'span 2' }}>
+              <label className="label">Delivery address</label>
+              <input value={deliveryAddress} onChange={(e) => setDeliveryAddress(e.target.value)} placeholder="e.g. Laxmi Nagar, Delhi" />
+            </div>
+          )}
         </div>
 
         <div className="summary-box">
@@ -90,7 +107,7 @@ export default function OrderModal({
           <button className="ghost-button" onClick={onClose}>Cancel</button>
           <button
             className="primary-button"
-            disabled={submitting || quantity <= 0 || quantity > listing.available_kg}
+            disabled={submitting || quantity <= 0 || quantity > listing.available_kg || (deliveryMode === 'delivery' && !deliveryAddress.trim())}
             onClick={async () => {
               setSubmitting(true);
               try {
@@ -100,6 +117,8 @@ export default function OrderModal({
                   quantity_kg: quantity,
                   pickup_time: pickupTime,
                   phone,
+                  delivery_mode: deliveryMode,
+                  delivery_address: deliveryMode === 'delivery' ? deliveryAddress.trim() : undefined,
                 });
               } finally {
                 setSubmitting(false);

@@ -207,3 +207,103 @@ export type DemandPoolOpportunity = {
 export type DemandPoolResponse = {
   items: DemandPoolOpportunity[];
 };
+
+export type DeliveryMode = 'pickup' | 'delivery';
+export type FulfillmentDeliveryStatus = 'pending' | 'accepted' | 'packed' | 'out_for_delivery' | 'delivered' | 'cancelled';
+export type DemandRequestStatus = 'open' | 'pooled' | 'committed' | 'fulfilled' | 'cancelled' | 'expired';
+export type DemandPoolStatus = 'forming' | 'open' | 'committed' | 'fulfilling' | 'fulfilled' | 'expired';
+
+export type DemandRequestCreate = {
+  buyer_id: string;
+  buyer_name: string;
+  product_query: string;
+  quantity_kg: number;
+  max_price_per_kg?: number | null;
+  delivery_mode: DeliveryMode;
+  delivery_address: string;
+  needed_by: string;
+  phone?: string | null;
+};
+
+export type DemandRequest = {
+  id: string;
+  buyer_id: string;
+  buyer_name: string;
+  product_query: string;
+  product_name: string;
+  category: ProductCategory;
+  quantity_kg: number;
+  max_price_per_kg?: number | null;
+  delivery_mode: DeliveryMode;
+  delivery_address: string;
+  latitude?: number | null;
+  longitude?: number | null;
+  place_id?: string | null;
+  locality_key: string;
+  needed_by: string;
+  phone?: string | null;
+  status: DemandRequestStatus;
+  pool_id?: string | null;
+  order_id?: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type PoolMember = {
+  request_id: string;
+  buyer_id: string;
+  buyer_name: string;
+  quantity_kg: number;
+  delivery_address: string;
+  latitude?: number | null;
+  longitude?: number | null;
+  max_price_per_kg?: number | null;
+};
+
+export type CommitDemandPool = {
+  id: string;
+  product_name: string;
+  category: ProductCategory;
+  locality_key: string;
+  locality_label: string;
+  total_quantity_kg: number;
+  buyer_count: number;
+  suggested_max_price_per_kg?: number | null;
+  centroid_lat?: number | null;
+  centroid_lng?: number | null;
+  members: PoolMember[];
+  status: DemandPoolStatus;
+  committed_seller_id?: string | null;
+  committed_seller_name?: string | null;
+  committed_price_per_kg?: number | null;
+  window_started_at: string;
+  updated_at: string;
+};
+
+export type PoolCommitIn = {
+  seller_id: string;
+  listing_id: string;
+  price_per_kg?: number | null;
+};
+
+export type Delivery = {
+  id: string;
+  order_id: string;
+  pool_id?: string | null;
+  seller_id: string;
+  seller_name: string;
+  buyer_id?: string | null;
+  buyer_name: string;
+  product_name: string;
+  quantity_kg: number;
+  delivery_mode: DeliveryMode;
+  delivery_address?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  distance_km?: number | null;
+  delivery_fee: number;
+  status: FulfillmentDeliveryStatus;
+  eta?: string | null;
+  created_at: string;
+  updated_at: string;
+};

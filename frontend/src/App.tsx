@@ -14,6 +14,12 @@ import {
   reportBuyerDemandSearch,
   resetDemo,
   respondToOrder,
+  createDemandRequest,
+  fetchBuyerDemandRequests,
+  fetchCommitPools,
+  commitToPool,
+  fetchDeliveries,
+  advanceDelivery,
 } from './api';
 import AuthModal from './components/AuthModal';
 import BuyerWorkspace from './components/BuyerWorkspace';
@@ -21,7 +27,7 @@ import LandingPage from './components/LandingPage';
 import OrderModal from './components/OrderModal';
 import SellerWorkspace from './components/SellerWorkspace';
 import DashboardLayout, { type DashboardSection } from './components/dashboard/DashboardLayout';
-import type { AuthRole, AuthSession, DemandPoolOpportunity, Insight, Listing, Notification, Order, SellerDashboard, SellerLedgerView, SellerProfile } from './types';
+import type { AuthRole, AuthSession, DemandPoolOpportunity, Insight, Listing, Notification, Order, SellerDashboard, SellerLedgerView, SellerProfile, CommitDemandPool, Delivery, DemandRequest, FulfillmentDeliveryStatus, DemandRequestCreate } from './types';
 
 const BUYER_SESSION_STORAGE_KEY = 'bolbazaar_buyer_session_id';
 const APP_SESSION_STORAGE_KEY = 'bolbazaar_web_session';
@@ -107,6 +113,10 @@ export default function App() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const buyerSessionIdRef = useRef<string>(getOrCreateBuyerSessionId());
+  const [buyerDemands, setBuyerDemands] = useState<DemandRequest[]>([]);
+  const [buyerDeliveries, setBuyerDeliveries] = useState<Delivery[]>([]);
+  const [commitPools, setCommitPools] = useState<CommitDemandPool[]>([]);
+  const [deliveries, setDeliveries] = useState<Delivery[]>([]);
 
   const activeSellerId = sessionSellerId(session) || selectedSellerId;
 
@@ -114,6 +124,9 @@ export default function App() {
     setLoading(true);
     setError(null);
     try {
+      const currentRole = session?.role;
+      const buyerId = session?.role === 'buyer' ? session.phone_number : null;
+
       const [nextListings, nextOrders, nextNotifications, nextSellers, nextDemandPools] = await Promise.all([
         fetchListings(),
         fetchOrders(),
@@ -138,19 +151,37 @@ export default function App() {
         null;
       setSelectedSellerId(nextSellerId);
 
+      if (currentRole === 'buyer' && buyerId) {
+        const [demands, bDeliveries] = await Promise.all([
+          fetchBuyerDemandRequests(buyerId),
+          fetchDeliveries({ buyer_id: buyerId })
+        ]);
+        setBuyerDemands(demands);
+        setBuyerDeliveries(bDeliveries);
+      } else {
+        setBuyerDemands([]);
+        setBuyerDeliveries([]);
+      }
+
       if (nextSellerId) {
-        const [nextDashboard, nextLedger, nextInsight] = await Promise.all([
+        const [nextDashboard, nextLedger, nextInsight, pools, sDeliveries] = await Promise.all([
           fetchSellerDashboard(nextSellerId),
           fetchSellerLedger(nextSellerId),
           fetchInsight(nextSellerId),
+          fetchCommitPools(nextSellerId),
+          fetchDeliveries({ seller_id: nextSellerId }),
         ]);
         setDashboard(nextDashboard);
         setLedger(nextLedger);
         setInsight(nextInsight);
+        setCommitPools(pools);
+        setDeliveries(sDeliveries);
       } else {
         setDashboard(null);
         setLedger(null);
         setInsight(null);
+        setCommitPools([]);
+        setDeliveries([]);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong');
@@ -196,6 +227,7 @@ export default function App() {
     }
     if (session?.role === 'buyer') {
       setBuyerSection('marketplace');
+      void loadAll(null);
     }
   }, [session]);
 
@@ -390,6 +422,12 @@ export default function App() {
                 });
                 await loadAll(activeSellerId);
               }}
+              buyerDemands={buyerDemands}
+              buyerDeliveries={buyerDeliveries}
+              onPostDemandRequest={async (payload) => {
+                await createDemandRequest(payload);
+                await loadAll(activeSellerId);
+              }}
             />
           ) : (
             <SellerWorkspace
@@ -413,6 +451,17 @@ export default function App() {
                   throw new Error('Seller session not available');
                 }
                 await recordLedgerPayment({ seller_id: activeSellerId, ...payload });
+                await loadAll(activeSellerId);
+              }}
+              commitPools={commitPools}
+              listings={listings}
+              deliveries={deliveries}
+              onCommitPool={async (poolId, listingId, pricePerKg) => {
+                await commitToPool(poolId, { seller_id: activeSellerId!, listing_id: listingId, price_per_kg: pricePerKg });
+                await loadAll(activeSellerId);
+              }}
+              onAdvanceDelivery={async (deliveryId, status) => {
+                await advanceDelivery(deliveryId, status);
                 await loadAll(activeSellerId);
               }}
             />

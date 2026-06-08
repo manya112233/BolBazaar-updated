@@ -91,7 +91,7 @@ from pathlib import Path
 from threading import RLock
 from typing import Any
 
-from app.schemas import BuyerDemandEvent, LedgerEntry, Listing, Order, OtpRequestRecord, SellerInsight, SellerProfile, SellerSession
+from app.schemas import BuyerDemandEvent, LedgerEntry, Listing, Order, OtpRequestRecord, SellerInsight, SellerProfile, SellerSession, DemandRequest, CommitDemandPool, Delivery
 
 
 class JsonStore:
@@ -114,6 +114,9 @@ class JsonStore:
                 "whatsapp_message_fingerprints": {},
                 "whatsapp_message_states": {},
                 "processed_whatsapp_message_ids": [],
+                "demand_requests": [],
+                "commit_pools": [],
+                "deliveries": [],
             })
 
     def _read(self) -> dict[str, Any]:
@@ -140,6 +143,9 @@ class JsonStore:
                 "whatsapp_message_fingerprints": {},
                 "whatsapp_message_states": {},
                 "processed_whatsapp_message_ids": [],
+                "demand_requests": [],
+                "commit_pools": [],
+                "deliveries": [],
             })
 
     def list_listings(self) -> list[Listing]:
@@ -535,3 +541,67 @@ class JsonStore:
                 states.pop(fingerprint, None)
                 self._persist_demand_alert_fingerprints(data, states)
                 self._write(data)
+
+    def list_demand_requests(self) -> list[DemandRequest]:
+        data = self._read()
+        return [DemandRequest.model_validate(item) for item in data.get("demand_requests", [])]
+
+    def get_demand_request(self, request_id: str) -> DemandRequest | None:
+        for request in self.list_demand_requests():
+            if request.id == request_id:
+                return request
+        return None
+
+    def save_demand_request(self, request: DemandRequest) -> DemandRequest:
+        with self._lock:
+            data = self._read()
+            requests = [item for item in data.get("demand_requests", []) if item["id"] != request.id]
+            requests.append(json.loads(request.model_dump_json()))
+            data["demand_requests"] = requests
+            self._write(data)
+        return request
+
+    def list_commit_pools(self) -> list[CommitDemandPool]:
+        data = self._read()
+        return [CommitDemandPool.model_validate(item) for item in data.get("commit_pools", [])]
+
+    def get_commit_pool(self, pool_id: str) -> CommitDemandPool | None:
+        for pool in self.list_commit_pools():
+            if pool.id == pool_id:
+                return pool
+        return None
+
+    def save_commit_pool(self, pool: CommitDemandPool) -> CommitDemandPool:
+        with self._lock:
+            data = self._read()
+            pools = [item for item in data.get("commit_pools", []) if item["id"] != pool.id]
+            pools.append(json.loads(pool.model_dump_json()))
+            data["commit_pools"] = pools
+            self._write(data)
+        return pool
+
+    def delete_commit_pool(self, pool_id: str) -> None:
+        with self._lock:
+            data = self._read()
+            data["commit_pools"] = [item for item in data.get("commit_pools", []) if item["id"] != pool_id]
+            self._write(data)
+
+    def list_deliveries(self) -> list[Delivery]:
+        data = self._read()
+        return [Delivery.model_validate(item) for item in data.get("deliveries", [])]
+
+    def get_delivery(self, delivery_id: str) -> Delivery | None:
+        for delivery in self.list_deliveries():
+            if delivery.id == delivery_id:
+                return delivery
+        return None
+
+    def save_delivery(self, delivery: Delivery) -> Delivery:
+        with self._lock:
+            data = self._read()
+            deliveries = [item for item in data.get("deliveries", []) if item["id"] != delivery.id]
+            deliveries.append(json.loads(delivery.model_dump_json()))
+            data["deliveries"] = deliveries
+            self._write(data)
+        return delivery
+

@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from app.services.google_clients import GoogleClients
-from app.schemas import BuyerDemandEvent, LedgerEntry, Listing, Order, OtpRequestRecord, SellerInsight, SellerProfile, SellerSession
+from app.schemas import BuyerDemandEvent, LedgerEntry, Listing, Order, OtpRequestRecord, SellerInsight, SellerProfile, SellerSession, DemandRequest, CommitDemandPool, Delivery
 
 try:
     from google.api_core.exceptions import AlreadyExists
@@ -31,6 +31,9 @@ class FirestoreStore:
         self.demand_alert_fingerprints_collection = self.db.collection('demand_alert_fingerprints')
         self.whatsapp_messages_collection = self.db.collection('whatsapp_message_states')
         self.whatsapp_message_fingerprints_collection = self.db.collection('whatsapp_message_fingerprints')
+        self.demand_requests_collection = self.db.collection('demand_requests')
+        self.commit_pools_collection = self.db.collection('commit_pools')
+        self.deliveries_collection = self.db.collection('deliveries')
         self._validate_connection()
 
     def _validate_connection(self) -> None:
@@ -51,6 +54,9 @@ class FirestoreStore:
             self.demand_alert_fingerprints_collection,
             self.whatsapp_messages_collection,
             self.whatsapp_message_fingerprints_collection,
+            self.demand_requests_collection,
+            self.commit_pools_collection,
+            self.deliveries_collection,
         ]:
             for doc in collection.stream():
                 doc.reference.delete()
@@ -315,3 +321,49 @@ class FirestoreStore:
             return
         if doc.to_dict().get('status') == 'processing':
             ref.delete()
+
+    def list_demand_requests(self) -> list[DemandRequest]:
+        docs = self.demand_requests_collection.stream()
+        return [DemandRequest.model_validate(doc.to_dict()) for doc in docs]
+
+    def get_demand_request(self, request_id: str) -> DemandRequest | None:
+        doc = self.demand_requests_collection.document(request_id).get()
+        if not doc.exists:
+            return None
+        return DemandRequest.model_validate(doc.to_dict())
+
+    def save_demand_request(self, request: DemandRequest) -> DemandRequest:
+        self.demand_requests_collection.document(request.id).set(request.model_dump(mode='json'))
+        return request
+
+    def list_commit_pools(self) -> list[CommitDemandPool]:
+        docs = self.commit_pools_collection.stream()
+        return [CommitDemandPool.model_validate(doc.to_dict()) for doc in docs]
+
+    def get_commit_pool(self, pool_id: str) -> CommitDemandPool | None:
+        doc = self.commit_pools_collection.document(pool_id).get()
+        if not doc.exists:
+            return None
+        return CommitDemandPool.model_validate(doc.to_dict())
+
+    def save_commit_pool(self, pool: CommitDemandPool) -> CommitDemandPool:
+        self.commit_pools_collection.document(pool.id).set(pool.model_dump(mode='json'))
+        return pool
+
+    def delete_commit_pool(self, pool_id: str) -> None:
+        self.commit_pools_collection.document(pool_id).delete()
+
+    def list_deliveries(self) -> list[Delivery]:
+        docs = self.deliveries_collection.stream()
+        return [Delivery.model_validate(doc.to_dict()) for doc in docs]
+
+    def get_delivery(self, delivery_id: str) -> Delivery | None:
+        doc = self.deliveries_collection.document(delivery_id).get()
+        if not doc.exists:
+            return None
+        return Delivery.model_validate(doc.to_dict())
+
+    def save_delivery(self, delivery: Delivery) -> Delivery:
+        self.deliveries_collection.document(delivery.id).set(delivery.model_dump(mode='json'))
+        return delivery
+

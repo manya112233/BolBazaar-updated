@@ -516,6 +516,14 @@
       "audio_base64": null,
       "channel": "whatsapp",
       "delivery_status": "sent"
+    },
+    {
+      "seller_id": "919971497076",
+      "order_id": "pool_alert:cpool_c760d50544",
+      "text": "25 kg Tomato demand pooled in Laxmi Nagar, Delhi — open the app to commit.",
+      "audio_base64": null,
+      "channel": "whatsapp",
+      "delivery_status": "not_configured"
     }
   ],
   "insights": [
@@ -761,7 +769,12 @@
       "failed_attempts": 0
     }
   ],
-  "demand_alert_fingerprints": {},
+  "demand_alert_fingerprints": {
+    "pool_open|cpool_c760d50544": {
+      "status": "processed",
+      "updated_at": "2026-06-08T15:02:03.436180+00:00"
+    }
+  },
   "whatsapp_message_fingerprints": {
     "596377698f76694441e0ee2cbffe1bac44315bdc084f5802c134dad8171996c5": {
       "status": "processing",
@@ -1129,5 +1142,95 @@
     "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0FBMTNDOTVFRkMyQUEwMjQ0MzIA",
     "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgWM0VCMEU2MjMyQkYyM0Q0RkQ3NUM0NgA=",
     "wamid.HBgMOTE5OTcxNDk3MDc2FQIAEhgUM0E5MDk1RkVEMTQ0REYwNzRCRDAA"
+  ],
+  "demand_requests": [
+    {
+      "id": "dmr_5de0b173a3",
+      "buyer_id": "b1",
+      "buyer_name": "Sharma Kirana",
+      "product_query": "tamatar",
+      "product_name": "Tomato",
+      "category": "vegetables",
+      "quantity_kg": 10.0,
+      "max_price_per_kg": null,
+      "delivery_mode": "delivery",
+      "delivery_address": "Laxmi Nagar, Delhi",
+      "latitude": null,
+      "longitude": null,
+      "place_id": null,
+      "locality_key": "tomato|laxmi nagar,",
+      "needed_by": "Today 6 PM",
+      "phone": null,
+      "status": "pooled",
+      "pool_id": "cpool_c760d50544",
+      "order_id": null,
+      "created_at": "2026-06-08T14:55:03.362197",
+      "updated_at": "2026-06-08T15:02:03.419657"
+    },
+    {
+      "id": "dmr_f21ccb3573",
+      "buyer_id": "b2",
+      "buyer_name": "Verma Store",
+      "product_query": "tomato",
+      "product_name": "Tomato",
+      "category": "vegetables",
+      "quantity_kg": 15.0,
+      "max_price_per_kg": null,
+      "delivery_mode": "delivery",
+      "delivery_address": "Laxmi Nagar, Delhi",
+      "latitude": null,
+      "longitude": null,
+      "place_id": null,
+      "locality_key": "tomato|laxmi nagar,",
+      "needed_by": "Today 7 PM",
+      "phone": null,
+      "status": "pooled",
+      "pool_id": "cpool_c760d50544",
+      "order_id": null,
+      "created_at": "2026-06-08T15:02:03.377162",
+      "updated_at": "2026-06-08T15:02:03.426146"
+    }
+  ],
+  "commit_pools": [
+    {
+      "id": "cpool_c760d50544",
+      "product_name": "Tomato",
+      "category": "vegetables",
+      "locality_key": "tomato|laxmi nagar,",
+      "locality_label": "Laxmi Nagar, Delhi",
+      "total_quantity_kg": 25.0,
+      "buyer_count": 2,
+      "suggested_max_price_per_kg": null,
+      "centroid_lat": null,
+      "centroid_lng": null,
+      "members": [
+        {
+          "request_id": "dmr_5de0b173a3",
+          "buyer_id": "b1",
+          "buyer_name": "Sharma Kirana",
+          "quantity_kg": 10.0,
+          "delivery_address": "Laxmi Nagar, Delhi",
+          "latitude": null,
+          "longitude": null,
+          "max_price_per_kg": null
+        },
+        {
+          "request_id": "dmr_f21ccb3573",
+          "buyer_id": "b2",
+          "buyer_name": "Verma Store",
+          "quantity_kg": 15.0,
+          "delivery_address": "Laxmi Nagar, Delhi",
+          "latitude": null,
+          "longitude": null,
+          "max_price_per_kg": null
+        }
+      ],
+      "status": "open",
+      "committed_seller_id": null,
+      "committed_seller_name": null,
+      "committed_price_per_kg": null,
+      "window_started_at": "2026-06-08T15:02:03.416417",
+      "updated_at": "2026-06-08T15:02:03.416422"
+    }
   ]
 }

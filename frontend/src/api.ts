@@ -1,4 +1,4 @@
-import type { AuthRole, BuyerDemandSearchRequest, BuyerDemandSearchResponse, DemandPoolOpportunity, DemandPoolResponse, Insight, Listing, Notification, Order, OtpRequestResponse, OtpVerifyResponse, SellerDashboard, SellerLedgerView, SellerProfile } from './types';
+import type { AuthRole, BuyerDemandSearchRequest, BuyerDemandSearchResponse, CommitDemandPool, Delivery, DemandPoolOpportunity, DemandPoolResponse, DemandRequest, DemandRequestCreate, FulfillmentDeliveryStatus, Insight, Listing, Notification, Order, OtpRequestResponse, OtpVerifyResponse, SellerDashboard, SellerLedgerView, SellerProfile } from './types';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 
@@ -72,6 +72,8 @@ export async function placeOrder(payload: {
   quantity_kg: number;
   pickup_time: string;
   phone?: string;
+  delivery_mode?: 'pickup' | 'delivery';
+  delivery_address?: string;
 }): Promise<Order> {
   const data = await request<{ ok: boolean; order: Order }>('/api/orders', {
     method: 'POST',
@@ -154,4 +156,47 @@ export async function reportBuyerDemandSearch(payload: BuyerDemandSearchRequest)
     method: 'POST',
     body: JSON.stringify(payload),
   });
+}
+
+export async function createDemandRequest(payload: DemandRequestCreate): Promise<DemandRequest> {
+  const data = await request<{ ok: boolean; request: DemandRequest }>('/api/buyers/demand-requests', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+  return data.request;
+}
+
+export async function fetchBuyerDemandRequests(buyerId: string): Promise<DemandRequest[]> {
+  const data = await request<{ items: DemandRequest[] }>(`/api/buyers/${buyerId}/demand-requests`);
+  return data.items;
+}
+
+export async function fetchCommitPools(sellerId?: string): Promise<CommitDemandPool[]> {
+  const query = sellerId ? `?seller_id=${encodeURIComponent(sellerId)}` : '';
+  const data = await request<{ items: CommitDemandPool[] }>(`/api/commit-pools${query}`);
+  return data.items;
+}
+
+export async function commitToPool(poolId: string, payload: { seller_id: string; listing_id: string; price_per_kg?: number }): Promise<Record<string, unknown>> {
+  return request<Record<string, unknown>>(`/api/commit-pools/${poolId}/commit`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function fetchDeliveries(filters?: { seller_id?: string; buyer_id?: string }): Promise<Delivery[]> {
+  const params = new URLSearchParams();
+  if (filters?.seller_id) params.set('seller_id', filters.seller_id);
+  if (filters?.buyer_id) params.set('buyer_id', filters.buyer_id);
+  const qs = params.toString();
+  const data = await request<{ items: Delivery[] }>(`/api/deliveries${qs ? `?${qs}` : ''}`);
+  return data.items;
+}
+
+export async function advanceDelivery(deliveryId: string, status: FulfillmentDeliveryStatus): Promise<Delivery> {
+  const data = await request<{ ok: boolean; delivery: Delivery }>(`/api/deliveries/${deliveryId}/advance`, {
+    method: 'POST',
+    body: JSON.stringify({ status }),
+  });
+  return data.delivery;
 }

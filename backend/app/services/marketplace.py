@@ -8,7 +8,7 @@ import httpx
 
 from app.config import get_settings
 from app.schemas import BuyerDemandEvent, BuyerDemandSearchIn, BuyerDemandSearchResponse, DemandPoolOpportunity, LedgerCaptureMode, LedgerEntry, LedgerPaymentCreate, LedgerSummary, Listing, ListingCreate, Order, OrderCreate, ProduceQualityAssessment, SellerLedgerView, SellerNotification, SourceChannel
-from app.schemas import SellerDashboard, SellerProfile
+from app.schemas import SellerDashboard, SellerProfile, CommitDemandPool, Delivery, DemandRequest, DemandRequestCreate, PoolCommitIn, PoolMember
 from app.services.extraction import ExtractionService
 from app.services.geo_service import GeoService
 from app.services.speech_service import SpeechService
@@ -686,12 +686,40 @@ class MarketplaceService:
             recent_ledger_entries=ledger_summary.recent_entries,
         )
 
+    ALLOWED_DELIVERY_TRANSITIONS = {
+        'pending': {'accepted', 'cancelled'},
+        'accepted': {'packed', 'cancelled'},
+        'packed': {'out_for_delivery', 'cancelled'},
+        'out_for_delivery': {'delivered', 'cancelled'},
+        'delivered': set(),
+        'cancelled': set(),
+    }
+
     def place_order(self, payload: OrderCreate) -> Order:
         listing = self.store.get_listing(payload.listing_id)
         if listing is None:
             raise ValueError('Listing not found')
         if payload.quantity_kg > listing.available_kg:
             raise ValueError('Requested quantity exceeds available stock')
+
+        delivery_mode = payload.delivery_mode or 'pickup'
+        delivery_address = payload.delivery_address
+        delivery_fee = 0.0
+
+        if delivery_mode == 'delivery' and delivery_address:
+            geocoded = self.geo.geocode(delivery_address)
+            buyer_lat = buyer_lng = None
+            if geocoded:
+                delivery_address = geocoded.get('pickup_location') or delivery_address
+                buyer_lat = geocoded.get('latitude')
+                buyer_lng = geocoded.get('longitude')
+
+            profile = self.store.get_seller_profile(listing.seller_id)
+            seller_lat = profile.latitude if (profile and profile.latitude is not None) else listing.latitude
+            seller_lng = profile.longitude if (profile and profile.longitude is not None) else listing.longitude
+
+            distance = self.geo.haversine_km(seller_lat, seller_lng, buyer_lat, buyer_lng)
+            delivery_fee = self.geo.estimate_delivery_fee(distance)
 
         order = Order(
             listing_id=listing.id,
@@ -704,6 +732,10 @@ class MarketplaceService:
             pickup_time=payload.pickup_time,
             unit_price=listing.price_per_kg,
             total_price=round(payload.quantity_kg * listing.price_per_kg, 2),
+            delivery_mode=delivery_mode,
+            delivery_address=delivery_address,
+            delivery_fee=delivery_fee,
+            fulfillment_status='pending',
         )
         self.store.save_order(order)
 
@@ -763,11 +795,45 @@ class MarketplaceService:
 
         if decision == 'accept':
             order.status = 'accepted'
-            listing.available_kg = max(0, listing.available_kg - order.quantity_kg)
-            if listing.available_kg == 0:
+            order.fulfillment_status = 'accepted'
+            listing.available_kg = max(0.0, round(listing.available_kg - order.quantity_kg, 2))
+            if listing.available_kg == 0.0:
                 listing.status = 'sold_out'
+
+            if order.delivery_mode == 'delivery':
+                profile = self.store.get_seller_profile(listing.seller_id)
+                seller_lat = profile.latitude if (profile and profile.latitude is not None) else listing.latitude
+                seller_lng = profile.longitude if (profile and profile.longitude is not None) else listing.longitude
+
+                buyer_lat = buyer_lng = None
+                if order.delivery_address:
+                    geocoded = self.geo.geocode(order.delivery_address)
+                    if geocoded:
+                        buyer_lat = geocoded.get('latitude')
+                        buyer_lng = geocoded.get('longitude')
+
+                distance = self.geo.haversine_km(seller_lat, seller_lng, buyer_lat, buyer_lng)
+                delivery = Delivery(
+                    order_id=order.id,
+                    pool_id=order.pool_id,
+                    seller_id=order.seller_id,
+                    seller_name=order.seller_name,
+                    buyer_id=None,
+                    buyer_name=order.buyer_name,
+                    product_name=order.product_name,
+                    quantity_kg=order.quantity_kg,
+                    delivery_mode='delivery',
+                    delivery_address=order.delivery_address,
+                    latitude=buyer_lat,
+                    longitude=buyer_lng,
+                    distance_km=distance,
+                    delivery_fee=order.delivery_fee,
+                    status='accepted',
+                )
+                self.store.save_delivery(delivery)
         else:
             order.status = 'rejected'
+            order.fulfillment_status = 'cancelled'
 
         self.store.save_order(order)
         self.store.save_listing(listing)
@@ -784,3 +850,291 @@ class MarketplaceService:
         )
         self.store.save_insight(insight)
         return order
+
+    def create_demand_request(self, payload: DemandRequestCreate) -> DemandRequest:
+        signals = self.extractor.parse_listing_signals(payload.product_query)
+        product_name = signals.get('product_name') or payload.product_query.strip().title()
+        category = signals.get('category')
+        if category not in {'vegetables', 'fruits', 'grains', 'spices', 'other'}:
+            category = 'vegetables'
+
+        lat = lng = None
+        place_id = None
+        address = payload.delivery_address
+        geocoded = self.geo.geocode(payload.delivery_address)
+        if geocoded:
+            address = geocoded.get('pickup_location') or address
+            lat = geocoded.get('latitude')
+            lng = geocoded.get('longitude')
+            place_id = geocoded.get('place_id')
+
+        locality_key = self._locality_key(product_name, lat, lng, address)
+
+        request = DemandRequest(
+            buyer_id=payload.buyer_id,
+            buyer_name=payload.buyer_name,
+            product_query=payload.product_query,
+            product_name=product_name,
+            category=category,
+            quantity_kg=payload.quantity_kg,
+            max_price_per_kg=payload.max_price_per_kg,
+            delivery_mode=payload.delivery_mode,
+            delivery_address=address,
+            latitude=lat,
+            longitude=lng,
+            place_id=place_id,
+            locality_key=locality_key,
+            needed_by=payload.needed_by,
+            phone=payload.phone,
+            status='open',
+        )
+        self.store.save_demand_request(request)
+        self.rebuild_commit_pools(product_name=product_name)
+        return request
+
+    def _locality_key(self, product_name: str, lat: float | None, lng: float | None, address: str | None) -> str:
+        base = product_name.strip().lower()
+        if lat is not None and lng is not None:
+            d = self.settings.pool_geo_bucket_decimals
+            return f'{base}|{round(lat, d)},{round(lng, d)}'
+        locality = ' '.join((address or 'unknown').strip().lower().split()[:2])
+        return f'{base}|{locality}'
+
+    def rebuild_commit_pools(self, product_name: str | None = None) -> list[CommitDemandPool]:
+        since = datetime.utcnow() - timedelta(hours=self.settings.pool_window_hours)
+        open_requests = [
+            r for r in self.store.list_demand_requests()
+            if r.status in {'open', 'pooled'} and r.created_at >= since
+        ]
+        if product_name:
+            target = product_name.strip().lower()
+            open_requests = [r for r in open_requests if r.product_name.strip().lower() == target]
+
+        for pool in self.store.list_commit_pools():
+            if pool.status in {'open', 'forming'}:
+                if not product_name or pool.product_name.strip().lower() == product_name.strip().lower():
+                    self.store.delete_commit_pool(pool.id)
+
+        groups: dict[str, list[DemandRequest]] = {}
+        for r in open_requests:
+            groups.setdefault(r.locality_key, []).append(r)
+
+        built: list[CommitDemandPool] = []
+        for locality_key, reqs in groups.items():
+            members = [PoolMember(
+                request_id=r.id, buyer_id=r.buyer_id, buyer_name=r.buyer_name,
+                quantity_kg=r.quantity_kg, delivery_address=r.delivery_address,
+                latitude=r.latitude, longitude=r.longitude, max_price_per_kg=r.max_price_per_kg,
+            ) for r in reqs]
+            lats = [m.latitude for m in members if m.latitude is not None]
+            lngs = [m.longitude for m in members if m.longitude is not None]
+            prices = [m.max_price_per_kg for m in members if m.max_price_per_kg is not None]
+            
+            suggested_max = min(prices) if prices else None
+            centroid_lat = round(sum(lats) / len(lats), 6) if lats else None
+            centroid_lng = round(sum(lngs) / len(lngs), 6) if lngs else None
+            
+            status = 'open' if len(members) >= self.settings.pool_min_buyers else 'forming'
+            pool = CommitDemandPool(
+                product_name=reqs[0].product_name,
+                category=reqs[0].category,
+                locality_key=locality_key,
+                locality_label=' '.join(reqs[0].delivery_address.split()[:3]),
+                total_quantity_kg=round(sum(m.quantity_kg for m in members), 2),
+                buyer_count=len(members),
+                suggested_max_price_per_kg=suggested_max,
+                centroid_lat=centroid_lat,
+                centroid_lng=centroid_lng,
+                members=members,
+                status=status,
+            )
+            self.store.save_commit_pool(pool)
+            for r in reqs:
+                r.status = 'pooled'
+                r.pool_id = pool.id
+                r.updated_at = datetime.utcnow()
+                self.store.save_demand_request(r)
+
+            if status == 'open':
+                fingerprint = f'pool_open|{pool.id}'
+                claim_finger = getattr(self.store, 'claim_demand_alert_fingerprint', None)
+                mark_finger = getattr(self.store, 'mark_demand_alert_fingerprint_processed', None)
+                if callable(claim_finger) and claim_finger(fingerprint, window_seconds=86400):
+                    active_sellers = [p for p in self.list_seller_profiles() if p.registration_status == 'active']
+                    alert_body = f'{pool.total_quantity_kg:g} kg {pool.product_name} demand pooled in {pool.locality_label} — open the app to commit.'
+                    for profile in active_sellers:
+                        try:
+                            whatsapp_res = self.whatsapp.send_text_message(to=profile.seller_id, body=alert_body)
+                            self.store.add_notification(SellerNotification(
+                                seller_id=profile.seller_id, order_id=f'pool_alert:{pool.id}', text=alert_body,
+                                delivery_status=self.whatsapp.delivery_status(whatsapp_res),
+                            ).model_dump())
+                        except Exception:
+                            pass
+                    if callable(mark_finger):
+                        mark_finger(fingerprint)
+
+            built.append(pool)
+        return built
+
+    def list_commit_pools(self, seller_id: str | None = None) -> list[CommitDemandPool]:
+        pools = [p for p in self.store.list_commit_pools() if p.status in {'open', 'committed', 'fulfilling', 'forming'}]
+        if seller_id:
+            profile = self.store.get_seller_profile(seller_id)
+            if profile and profile.latitude is not None and profile.longitude is not None:
+                def keyfn(p):
+                    d = self.geo.haversine_km(profile.latitude, profile.longitude, p.centroid_lat, p.centroid_lng)
+                    return (d if d is not None else 1e9, -p.total_quantity_kg)
+                return sorted(pools, key=keyfn)
+        return sorted(pools, key=lambda p: (-p.total_quantity_kg, p.updated_at))
+
+    def commit_to_pool(self, pool_id: str, payload: PoolCommitIn) -> dict:
+        pool = self.store.get_commit_pool(pool_id)
+        if pool is None:
+            raise ValueError('Pool not found')
+        if pool.status not in {'open', 'forming'}:
+            raise ValueError('Pool is no longer open')
+
+        listing = self.store.get_listing(payload.listing_id)
+        if listing is None or listing.seller_id != payload.seller_id:
+            raise ValueError('Listing not found for this seller')
+        if listing.available_kg < pool.total_quantity_kg:
+            raise ValueError('Listing stock is less than the pooled demand')
+
+        price = payload.price_per_kg or listing.price_per_kg
+        profile = self.store.get_seller_profile(payload.seller_id)
+        seller_lat = profile.latitude if profile else listing.latitude
+        seller_lng = profile.longitude if profile else listing.longitude
+
+        created_orders = []
+        created_deliveries = []
+        for member in pool.members:
+            order = Order(
+                listing_id=listing.id,
+                seller_id=listing.seller_id,
+                seller_name=listing.seller_name,
+                product_name=listing.product_name,
+                buyer_name=member.buyer_name,
+                buyer_type='kirana',
+                quantity_kg=member.quantity_kg,
+                pickup_time=pool.locality_label,
+                unit_price=price,
+                total_price=round(member.quantity_kg * price, 2),
+                status='accepted',
+                delivery_mode='delivery',
+                delivery_address=member.delivery_address,
+                pool_id=pool.id,
+                fulfillment_status='accepted',
+            )
+            distance = self.geo.haversine_km(seller_lat, seller_lng, member.latitude, member.longitude)
+            fee = self.geo.estimate_delivery_fee(distance)
+            order.delivery_fee = fee
+            self.store.save_order(order)
+            created_orders.append(order)
+
+            delivery = Delivery(
+                order_id=order.id,
+                pool_id=pool.id,
+                seller_id=listing.seller_id,
+                seller_name=listing.seller_name,
+                buyer_id=member.buyer_id,
+                buyer_name=member.buyer_name,
+                product_name=listing.product_name,
+                quantity_kg=member.quantity_kg,
+                delivery_mode='delivery',
+                delivery_address=member.delivery_address,
+                latitude=member.latitude,
+                longitude=member.longitude,
+                distance_km=distance,
+                delivery_fee=fee,
+                status='accepted',
+            )
+            self.store.save_delivery(delivery)
+            created_deliveries.append(delivery)
+
+            req = self.store.get_demand_request(member.request_id)
+            if req:
+                req.status = 'committed'
+                req.order_id = order.id
+                req.updated_at = datetime.utcnow()
+                self.store.save_demand_request(req)
+
+        listing.available_kg = max(0.0, round(listing.available_kg - pool.total_quantity_kg, 2))
+        if listing.available_kg == 0.0:
+            listing.status = 'sold_out'
+        self.store.save_listing(listing)
+
+        pool.status = 'committed'
+        pool.committed_seller_id = listing.seller_id
+        pool.committed_seller_name = listing.seller_name
+        pool.committed_price_per_kg = price
+        pool.updated_at = datetime.utcnow()
+        self.store.save_commit_pool(pool)
+
+        msg = (f'You committed to {pool.total_quantity_kg:g} kg {pool.product_name} '
+               f'for {pool.buyer_count} buyers in {pool.locality_label}. '
+               f'{len(created_deliveries)} deliveries created.')
+        try:
+            result = self.whatsapp.send_text_message(to=listing.seller_id, body=msg)
+        except Exception as exc:
+            result = {'sent': False, 'reason': 'send_failed', 'error': str(exc)}
+        
+        self.store.add_notification(SellerNotification(
+            seller_id=listing.seller_id,
+            order_id=f'pool_commit:{pool.id}',
+            text=msg,
+            delivery_status=self.whatsapp.delivery_status(result),
+        ).model_dump())
+
+        return {'pool': pool, 'orders': created_orders, 'deliveries': created_deliveries}
+
+    def list_deliveries(self, seller_id: str | None = None, buyer_id: str | None = None) -> list[Delivery]:
+        items = self.store.list_deliveries()
+        if seller_id:
+            items = [d for d in items if d.seller_id == seller_id]
+        if buyer_id:
+            items = [d for d in items if d.buyer_id == buyer_id]
+        return sorted(items, key=lambda d: d.created_at, reverse=True)
+
+    def list_buyer_demand_requests(self, buyer_id: str) -> list[DemandRequest]:
+        items = [r for r in self.store.list_demand_requests() if r.buyer_id == buyer_id]
+        return sorted(items, key=lambda r: r.created_at, reverse=True)
+
+    def advance_delivery(self, delivery_id: str, next_status: str) -> Delivery:
+        delivery = self.store.get_delivery(delivery_id)
+        if delivery is None:
+            raise ValueError('Delivery not found')
+        allowed = self.ALLOWED_DELIVERY_TRANSITIONS.get(delivery.status, set())
+        if next_status not in allowed:
+            raise ValueError(f'Cannot move delivery from {delivery.status} to {next_status}')
+
+        delivery.status = next_status
+        delivery.updated_at = datetime.utcnow()
+        self.store.save_delivery(delivery)
+
+        order = self.store.get_order(delivery.order_id)
+        if order:
+            order.fulfillment_status = next_status
+            if next_status == 'delivered':
+                order.status = 'completed'
+            self.store.save_order(order)
+
+        if next_status == 'delivered':
+            req = next((r for r in self.store.list_demand_requests() if r.order_id == delivery.order_id), None)
+            if req:
+                req.status = 'fulfilled'
+                req.updated_at = datetime.utcnow()
+                self.store.save_demand_request(req)
+
+            if delivery.pool_id:
+                pool = self.store.get_commit_pool(delivery.pool_id)
+                if pool:
+                    pool_deliveries = [d for d in self.store.list_deliveries() if d.pool_id == pool.id]
+                    if pool_deliveries and all(d.status == 'delivered' for d in pool_deliveries):
+                        pool.status = 'fulfilled'
+                    elif any(d.status in {'packed', 'out_for_delivery'} for d in pool_deliveries):
+                        pool.status = 'fulfilling'
+                    pool.updated_at = datetime.utcnow()
+                    self.store.save_commit_pool(pool)
+        return delivery
+
