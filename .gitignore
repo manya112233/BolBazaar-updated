@@ -34,10 +34,12 @@ frontend/*.err
 frontend/*.tsbuildinfo
 
 # Test and runtime data
+/data/
 backend/pytest-temp/
 backend/data/*.tmp
 backend/*.log
 backend/*.err
+backend/tmp/
 
 # OS / editor
 .DS_Store

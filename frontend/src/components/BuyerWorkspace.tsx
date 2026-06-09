@@ -1,6 +1,19 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import type { AppLanguage } from '../App';
-import type { AuthSession, BuyerDemandSearchRequest, DemandPoolOpportunity, DemandRequest, DemandRequestCreate, Delivery, Insight, Listing, Notification, Order, SellerDashboard, SellerProfile } from '../types';
+import type {
+  AuthSession,
+  BuyerDemandSearchRequest,
+  Delivery,
+  DemandPoolOpportunity,
+  DemandRequest,
+  DemandRequestCreate,
+  Insight,
+  Listing,
+  Notification,
+  Order,
+  SellerDashboard,
+  SellerProfile,
+} from '../types';
 import BuyerOverview from './dashboard/BuyerOverview';
 import DemandRequestForm from './DemandRequestForm';
 import MyDemandsPanel from './MyDemandsPanel';
@@ -27,10 +40,10 @@ export default function BuyerWorkspace(props: {
   onMaxPriceChange: (value: number) => void;
   onOrder: (listing: Listing) => void;
   onCreateDemand: (payload: BuyerDemandSearchRequest) => Promise<void>;
-  // New delivery-system props (optional for backward compat)
   buyerDemands?: DemandRequest[];
   buyerDeliveries?: Delivery[];
   onPostDemandRequest?: (payload: DemandRequestCreate) => Promise<void>;
+  onConfirmDelivery?: (deliveryId: string, qualityIssue?: boolean, notes?: string) => Promise<void>;
 }) {
   const [buyerTab, setBuyerTab] = useState<BuyerTab>('browse');
 
@@ -39,9 +52,13 @@ export default function BuyerWorkspace(props: {
   }, [props.sectionId]);
 
   const tabs: { id: BuyerTab; label: string; badge?: number }[] = [
-    { id: 'browse', label: '🛒 Browse' },
-    { id: 'post_demand', label: '📋 Post Demand' },
-    { id: 'my_demands', label: '📦 My Demands', badge: (props.buyerDemands?.length || 0) + (props.buyerDeliveries?.length || 0) },
+    { id: 'browse', label: 'Browse Marketplace' },
+    { id: 'post_demand', label: 'Post Demand' },
+    {
+      id: 'my_demands',
+      label: 'My Demand & Delivery',
+      badge: (props.buyerDemands?.length || 0) + (props.buyerDeliveries?.length || 0),
+    },
   ];
 
   return (
@@ -73,6 +90,7 @@ export default function BuyerWorkspace(props: {
         <MyDemandsPanel
           demands={props.buyerDemands || []}
           deliveries={props.buyerDeliveries || []}
+          onConfirmDelivery={props.onConfirmDelivery}
         />
       )}
     </div>

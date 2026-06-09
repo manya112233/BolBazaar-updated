@@ -9,7 +9,7 @@ from fastapi.responses import PlainTextResponse
 from app.dependencies import get_auth_service, get_marketplace, get_store
 from datetime import datetime, timedelta
 
-from app.schemas import BuyerDemandEvent, BuyerDemandSearchIn, BuyerDemandSearchResponse, DemandPoolResponse, DemoSeedResponse, LedgerPaymentCreate, ListingResponse, OrderCreate, OrderDecisionIn, OtpRequestIn, OtpRequestResponse, OtpVerifyIn, OtpVerifyResponse, SellerLedgerView, SellerMessageIn, SellerProfile, DeliveryAdvanceIn, DemandRequestCreate, PoolCommitIn
+from app.schemas import BuyerDemandEvent, BuyerDemandSearchIn, BuyerDemandSearchResponse, BuyerDeliveryConfirmIn, DeliveryAdvanceIn, DeliveryAdvanceRequestIn, DemandPoolResponse, DemoSeedResponse, LedgerPaymentCreate, ListingQualityUpdateIn, ListingResponse, OrderCreate, OrderDecisionIn, OtpRequestIn, OtpRequestResponse, OtpVerifyIn, OtpVerifyResponse, SellerLedgerView, SellerMessageIn, SellerProfile, DemandRequestCreate, PoolCommitIn
 from app.services.auth_service import AuthService
 from app.services.marketplace import MarketplaceService
 from app.services.seller_flow import SellerFlowService
@@ -70,15 +70,191 @@ def _seed_demo_demand_pools(store: Any) -> None:
         save_event(event)
 
 
+def _seed_demo_supply_chain(store: Any, marketplace: MarketplaceService) -> None:
+    now = datetime.utcnow()
+    sellers = [
+        SellerProfile(
+            seller_id='919971497076',
+            seller_name='Shakti FPO',
+            store_name='Shakti FPO Tomatoes',
+            preferred_language='hi',
+            default_pickup_location='Nashik Collection Hub',
+            registration_status='active',
+            verification_status='verified',
+            seller_type='fpo',
+            source_channel='whatsapp',
+            updated_at=now,
+        ),
+        SellerProfile(
+            seller_id='918111111111',
+            seller_name='Kisan Fresh',
+            store_name='Kisan Fresh Produce',
+            preferred_language='en',
+            default_pickup_location='Pune Market Yard',
+            registration_status='active',
+            verification_status='verified',
+            seller_type='farmer',
+            source_channel='demo',
+            updated_at=now,
+        ),
+        SellerProfile(
+            seller_id='917222222222',
+            seller_name='GreenRoute Farms',
+            store_name='GreenRoute Farms Bengaluru',
+            preferred_language='en',
+            default_pickup_location='Yeshwanthpur Aggregation Point',
+            registration_status='active',
+            verification_status='verified',
+            seller_type='aggregator',
+            source_channel='demo',
+            updated_at=now,
+        ),
+    ]
+    for profile in sellers:
+        store.save_seller_profile(profile)
+
+    pending_tomato_listing = marketplace.create_listing_from_message(
+        seller_id='919971497076',
+        seller_name='Shakti FPO',
+        message_text='72 kilo tomato, 27 rupees kilo, Nashik Collection Hub pickup',
+        image_url='https://images.unsplash.com/photo-1546470427-e6ac89a99c4d?auto=format&fit=crop&w=1200&q=80',
+        source_channel='whatsapp',
+    )
+    verified_tomato_listing = marketplace.create_listing_from_message(
+        seller_id='919971497076',
+        seller_name='Shakti FPO',
+        message_text='48 kilo premium tomato, 31 rupees kilo, Nashik Collection Hub pickup',
+        image_url='https://images.unsplash.com/photo-1592924357228-91a4daadcfea?auto=format&fit=crop&w=1200&q=80',
+        source_channel='demo',
+    )
+    verified_onion_listing = marketplace.create_listing_from_message(
+        seller_id='918111111111',
+        seller_name='Kisan Fresh',
+        message_text='65 kilo onion, 24 rupees kilo, Pune Market Yard pickup',
+        image_url='https://images.unsplash.com/photo-1618512496248-a07fe83aa8cb?auto=format&fit=crop&w=1200&q=80',
+        source_channel='demo',
+    )
+    rejected_listing = marketplace.create_listing_from_message(
+        seller_id='917222222222',
+        seller_name='GreenRoute Farms',
+        message_text='34 kilo spinach, 18 rupees kilo, Yeshwanthpur Aggregation Point pickup',
+        image_url='https://images.unsplash.com/photo-1576045057995-568f588f82fb?auto=format&fit=crop&w=1200&q=80',
+        source_channel='demo',
+    )
+
+    marketplace.update_listing_quality(
+        verified_tomato_listing.id,
+        ListingQualityUpdateIn(
+            status='approved',
+            grade='A',
+            notes='BolBazaar Verified: bright red tomato lot, uniform size, and clean crate packing.',
+            checked_by='ops-demo-1',
+            confidence=0.95,
+        ),
+    )
+    marketplace.update_listing_quality(
+        verified_onion_listing.id,
+        ListingQualityUpdateIn(
+            status='approved',
+            grade='B',
+            notes='BolBazaar Verified: trade-ready onions with minor size variation but healthy outer skin.',
+            checked_by='ops-demo-1',
+            confidence=0.86,
+        ),
+    )
+    marketplace.update_listing_quality(
+        rejected_listing.id,
+        ListingQualityUpdateIn(
+            status='rejected',
+            notes='Rejected after ops review due to wilted leaves and visible moisture damage.',
+            checked_by='ops-demo-1',
+            confidence=0.78,
+        ),
+    )
+
+    marketplace.place_order(OrderCreate(
+        listing_id=verified_onion_listing.id,
+        buyer_name='Sunrise Kirana',
+        buyer_type='kirana',
+        quantity_kg=20,
+        pickup_time='Today 5:30 PM',
+        delivery_mode='delivery',
+        delivery_address='Lajpat Nagar, Delhi',
+    ))
+
+    handover_order = marketplace.place_order(OrderCreate(
+        listing_id=verified_tomato_listing.id,
+        buyer_name='Asha Retail Mart',
+        buyer_type='retailer',
+        quantity_kg=18,
+        pickup_time='Today 7 PM',
+        delivery_mode='delivery',
+        delivery_address='South Extension, Delhi',
+    ))
+    marketplace.respond_to_order(handover_order.id, 'accept')
+
+    in_transit_order = marketplace.place_order(OrderCreate(
+        listing_id=verified_onion_listing.id,
+        buyer_name='Metro Canteen Services',
+        buyer_type='canteen',
+        quantity_kg=25,
+        pickup_time='Tomorrow 7 AM',
+        delivery_mode='delivery',
+        delivery_address='Noida Sector 62',
+    ))
+    marketplace.respond_to_order(in_transit_order.id, 'accept')
+
+    delivered_order = marketplace.place_order(OrderCreate(
+        listing_id=verified_tomato_listing.id,
+        buyer_name='Sunrise Kirana',
+        buyer_type='kirana',
+        quantity_kg=12,
+        pickup_time='Today 3 PM',
+        delivery_mode='delivery',
+        delivery_address='Karol Bagh, Delhi',
+    ))
+    marketplace.respond_to_order(delivered_order.id, 'accept')
+
+    deliveries = marketplace.list_deliveries()
+    handover_delivery = next((item for item in deliveries if item.order_id == handover_order.id), None)
+    in_transit_delivery = next((item for item in deliveries if item.order_id == in_transit_order.id), None)
+    delivered_delivery = next((item for item in deliveries if item.order_id == delivered_order.id), None)
+
+    if handover_delivery is not None:
+        marketplace.advance_delivery_for_actor(handover_delivery.id, DeliveryAdvanceRequestIn(next_status='quality_check_pending', actor_role='ops', actor_id='ops-demo-1'))
+        marketplace.advance_delivery_for_actor(handover_delivery.id, DeliveryAdvanceRequestIn(next_status='quality_approved', actor_role='ops', actor_id='ops-demo-1'))
+        marketplace.advance_delivery_for_actor(handover_delivery.id, DeliveryAdvanceRequestIn(next_status='packed', actor_role='seller', actor_id=handover_delivery.seller_id))
+        marketplace.advance_delivery_for_actor(handover_delivery.id, DeliveryAdvanceRequestIn(next_status='handover_pending', actor_role='seller', actor_id=handover_delivery.seller_id))
+
+    if in_transit_delivery is not None:
+        marketplace.advance_delivery_for_actor(in_transit_delivery.id, DeliveryAdvanceRequestIn(next_status='quality_check_pending', actor_role='ops', actor_id='ops-demo-1'))
+        marketplace.advance_delivery_for_actor(in_transit_delivery.id, DeliveryAdvanceRequestIn(next_status='quality_approved', actor_role='ops', actor_id='ops-demo-1'))
+        marketplace.advance_delivery_for_actor(in_transit_delivery.id, DeliveryAdvanceRequestIn(next_status='packed', actor_role='seller', actor_id=in_transit_delivery.seller_id))
+        marketplace.advance_delivery_for_actor(in_transit_delivery.id, DeliveryAdvanceRequestIn(next_status='picked_up', actor_role='ops', actor_id='ops-demo-1'))
+        marketplace.advance_delivery_for_actor(in_transit_delivery.id, DeliveryAdvanceRequestIn(next_status='in_transit', actor_role='ops', actor_id='ops-demo-1'))
+
+    if delivered_delivery is not None:
+        marketplace.advance_delivery_for_actor(delivered_delivery.id, DeliveryAdvanceRequestIn(next_status='quality_check_pending', actor_role='ops', actor_id='ops-demo-1'))
+        marketplace.advance_delivery_for_actor(delivered_delivery.id, DeliveryAdvanceRequestIn(next_status='quality_approved', actor_role='ops', actor_id='ops-demo-1'))
+        marketplace.advance_delivery_for_actor(delivered_delivery.id, DeliveryAdvanceRequestIn(next_status='packed', actor_role='seller', actor_id=delivered_delivery.seller_id))
+        marketplace.advance_delivery_for_actor(delivered_delivery.id, DeliveryAdvanceRequestIn(next_status='picked_up', actor_role='ops', actor_id='ops-demo-1'))
+        marketplace.advance_delivery_for_actor(delivered_delivery.id, DeliveryAdvanceRequestIn(next_status='in_transit', actor_role='ops', actor_id='ops-demo-1'))
+        marketplace.advance_delivery_for_actor(delivered_delivery.id, DeliveryAdvanceRequestIn(next_status='delivered', actor_role='ops', actor_id='ops-demo-1'))
+
+
 @router.get('/health')
 def health() -> dict[str, str]:
     return {'status': 'ok'}
 
 
 @router.post('/demo/seed', response_model=DemoSeedResponse)
-def seed_demo(store: Any = Depends(get_store)) -> DemoSeedResponse:
+def seed_demo(
+    store: Any = Depends(get_store),
+    marketplace: MarketplaceService = Depends(get_marketplace),
+) -> DemoSeedResponse:
     store.reset()
     _seed_demo_demand_pools(store)
+    _seed_demo_supply_chain(store, marketplace)
     return DemoSeedResponse(ok=True, message='Demo store reset successfully')
 
 
@@ -450,6 +626,50 @@ def list_deliveries(
     return {'items': marketplace.list_deliveries(seller_id=seller_id, buyer_id=buyer_id)}
 
 
+@router.get('/ops/quality/pending')
+def list_ops_pending_quality(marketplace: MarketplaceService = Depends(get_marketplace)) -> dict:
+    return {'items': marketplace.list_pending_quality_checks()}
+
+
+@router.post('/ops/listings/{listing_id}/quality')
+def update_ops_listing_quality(
+    listing_id: str,
+    payload: ListingQualityUpdateIn,
+    marketplace: MarketplaceService = Depends(get_marketplace),
+) -> dict:
+    try:
+        return {'ok': True, 'listing': marketplace.update_listing_quality(listing_id, payload)}
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.get('/ops/deliveries')
+def list_ops_deliveries(marketplace: MarketplaceService = Depends(get_marketplace)) -> dict:
+    return {'items': marketplace.list_deliveries()}
+
+
+@router.post('/ops/deliveries/{delivery_id}/advance')
+def advance_ops_delivery(
+    delivery_id: str,
+    payload: DeliveryAdvanceRequestIn,
+    marketplace: MarketplaceService = Depends(get_marketplace),
+) -> dict:
+    try:
+        return {'ok': True, 'delivery': marketplace.advance_delivery_for_actor(delivery_id, payload)}
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.get('/ops/dashboard')
+def get_ops_dashboard(marketplace: MarketplaceService = Depends(get_marketplace)) -> dict:
+    return marketplace.build_ops_dashboard().model_dump()
+
+
+@router.get('/ops/metrics')
+def get_ops_metrics(marketplace: MarketplaceService = Depends(get_marketplace)) -> dict:
+    return marketplace.build_ops_metrics().model_dump()
+
+
 @router.post('/deliveries/{delivery_id}/advance')
 def advance_delivery(
     delivery_id: str,
@@ -457,7 +677,19 @@ def advance_delivery(
     marketplace: MarketplaceService = Depends(get_marketplace),
 ) -> dict:
     try:
-        return {'ok': True, 'delivery': marketplace.advance_delivery(delivery_id, payload.status)}
+        return {'ok': True, 'delivery': marketplace.advance_delivery(delivery_id, payload.status, actor_role='seller')}
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.post('/buyers/deliveries/{delivery_id}/confirm')
+def confirm_buyer_delivery(
+    delivery_id: str,
+    payload: BuyerDeliveryConfirmIn,
+    marketplace: MarketplaceService = Depends(get_marketplace),
+) -> dict:
+    try:
+        return {'ok': True, 'delivery': marketplace.confirm_buyer_delivery(delivery_id, payload)}
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 

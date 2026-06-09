@@ -12,7 +12,7 @@ OrderStatus = Literal['pending', 'accepted', 'rejected', 'completed']
 ListingStatus = Literal['live', 'paused', 'sold_out']
 SourceChannel = Literal['whatsapp', 'demo', 'api']
 QualityAssessmentSource = Literal['text_signal', 'ai_visual']
-AuthRole = Literal['buyer', 'seller']
+AuthRole = Literal['buyer', 'seller', 'ops']
 OtpDeliveryMethod = Literal['whatsapp', 'demo_preview']
 OtpDeliveryStatus = Literal['sent', 'preview', 'failed']
 SellerLanguage = Literal['hi', 'en']
@@ -23,7 +23,25 @@ LedgerEntryKind = Literal['sale', 'payment']
 LedgerParseSource = Literal['rule_based', 'ai_structured']
 LedgerCaptureMode = Literal['voice_note', 'text_message']
 DeliveryMode = Literal['pickup', 'delivery']
-FulfillmentDeliveryStatus = Literal['pending', 'accepted', 'packed', 'out_for_delivery', 'delivered', 'cancelled']
+ListingQualityStatus = Literal['pending', 'approved', 'rejected']
+ListingQualityGrade = Literal['A', 'B', 'C']
+FulfillmentDeliveryStatus = Literal[
+    'pending',
+    'accepted',
+    'order_accepted',
+    'quality_check_pending',
+    'quality_approved',
+    'quality_rejected',
+    'packed',
+    'handover_pending',
+    'picked_up',
+    'out_for_delivery',
+    'in_transit',
+    'delivered',
+    'buyer_confirmed',
+    'settled',
+    'cancelled',
+]
 DemandRequestStatus = Literal['open', 'pooled', 'committed', 'fulfilled', 'cancelled', 'expired']
 DemandPoolStatus = Literal['forming', 'open', 'committed', 'fulfilling', 'fulfilled', 'expired']
 SellerVerificationMethod = Literal[
@@ -97,6 +115,7 @@ class AuthSession(BaseModel):
     seller_id: str | None = None
     seller_name: str | None = None
     store_name: str | None = None
+    ops_id: str | None = None
 
 
 class OtpRequestRecord(BaseModel):
@@ -205,6 +224,13 @@ class ListingCreate(BaseModel):
     quality_summary: str | None = None
     quality_assessment_source: QualityAssessmentSource = 'text_signal'
     quality_signals: list[str] = Field(default_factory=list)
+    quality_status: ListingQualityStatus = 'pending'
+    quality_confidence: float | None = Field(default=None, ge=0, le=1)
+    quality_notes: str | None = None
+    quality_proof_images: list[str] = Field(default_factory=list)
+    verified_by_bolbazaar: bool = False
+    quality_checked_at: datetime | None = None
+    quality_checked_by: str | None = None
     image_url: HttpUrl | None = None
     description: str | None = None
     tags: list[str] = Field(default_factory=list)
@@ -230,6 +256,13 @@ class Listing(BaseModel):
     quality_summary: str | None = None
     quality_assessment_source: QualityAssessmentSource = 'text_signal'
     quality_signals: list[str] = Field(default_factory=list)
+    quality_status: ListingQualityStatus = 'pending'
+    quality_confidence: float | None = Field(default=None, ge=0, le=1)
+    quality_notes: str | None = None
+    quality_proof_images: list[str] = Field(default_factory=list)
+    verified_by_bolbazaar: bool = False
+    quality_checked_at: datetime | None = None
+    quality_checked_by: str | None = None
     image_url: HttpUrl | None = None
     description: str | None = None
     tags: list[str] = Field(default_factory=list)
@@ -275,6 +308,8 @@ class Order(BaseModel):
     delivery_address: str | None = None
     delivery_fee: float = 0
     fulfillment_status: FulfillmentDeliveryStatus = 'pending'
+    quality_issue_reported: bool = False
+    quality_issue_notes: str | None = None
     pool_id: str | None = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
@@ -494,6 +529,10 @@ class Delivery(BaseModel):
     distance_km: float | None = None
     delivery_fee: float = 0
     status: FulfillmentDeliveryStatus = 'accepted'
+    current_actor_role: AuthRole | None = None
+    last_actor_role: AuthRole | None = None
+    last_actor_id: str | None = None
+    handover_confirmed_at: datetime | None = None
     eta: str | None = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
@@ -501,4 +540,47 @@ class Delivery(BaseModel):
 
 class DeliveryAdvanceIn(BaseModel):
     status: FulfillmentDeliveryStatus
+    actor_role: AuthRole | None = None
+    actor_id: str | None = None
+
+
+class ListingQualityUpdateIn(BaseModel):
+    status: ListingQualityStatus
+    grade: ListingQualityGrade | None = None
+    notes: str | None = None
+    checked_by: str = Field(min_length=2, max_length=120)
+    confidence: float | None = Field(default=None, ge=0, le=1)
+    proof_images: list[str] = Field(default_factory=list)
+
+
+class DeliveryAdvanceRequestIn(BaseModel):
+    next_status: FulfillmentDeliveryStatus
+    actor_role: AuthRole
+    actor_id: str | None = None
+
+
+class BuyerDeliveryConfirmIn(BaseModel):
+    buyer_id: str = Field(min_length=2, max_length=120)
+    quality_issue: bool = False
+    notes: str | None = Field(default=None, max_length=500)
+
+
+class OpsMetricSnapshot(BaseModel):
+    total_listings: int = 0
+    verified_listings: int = 0
+    pending_quality_checks: int = 0
+    rejected_listings: int = 0
+    active_deliveries: int = 0
+    completed_deliveries: int = 0
+    demand_pools_matched: int = 0
+    estimated_supply_matched_kg: float = 0
+    orders_fulfilled_through_verified_supply: int = 0
+
+
+class OpsDashboardResponse(BaseModel):
+    pending_quality_checks: list[Listing] = Field(default_factory=list)
+    verified_listings: list[Listing] = Field(default_factory=list)
+    rejected_listings: list[Listing] = Field(default_factory=list)
+    active_deliveries: list[Delivery] = Field(default_factory=list)
+    metrics: OpsMetricSnapshot = Field(default_factory=OpsMetricSnapshot)
 

@@ -7,7 +7,7 @@ import hashlib
 import httpx
 
 from app.config import get_settings
-from app.schemas import BuyerDemandEvent, BuyerDemandSearchIn, BuyerDemandSearchResponse, DemandPoolOpportunity, LedgerCaptureMode, LedgerEntry, LedgerPaymentCreate, LedgerSummary, Listing, ListingCreate, Order, OrderCreate, ProduceQualityAssessment, SellerLedgerView, SellerNotification, SourceChannel
+from app.schemas import BuyerDemandEvent, BuyerDemandSearchIn, BuyerDemandSearchResponse, BuyerDeliveryConfirmIn, DemandPoolOpportunity, DeliveryAdvanceRequestIn, LedgerCaptureMode, LedgerEntry, LedgerPaymentCreate, LedgerSummary, Listing, ListingCreate, ListingQualityUpdateIn, OpsDashboardResponse, OpsMetricSnapshot, Order, OrderCreate, ProduceQualityAssessment, SellerLedgerView, SellerNotification, SourceChannel
 from app.schemas import SellerDashboard, SellerProfile, CommitDemandPool, Delivery, DemandRequest, DemandRequestCreate, PoolCommitIn, PoolMember
 from app.services.extraction import ExtractionService
 from app.services.geo_service import GeoService
@@ -148,6 +148,19 @@ class MarketplaceService:
             quality_summary=draft.quality_summary,
             quality_assessment_source=draft.quality_assessment_source,
             quality_signals=draft.quality_signals,
+            quality_status='pending',
+            quality_confidence=(
+                round(draft.quality_score / 100, 2)
+                if draft.quality_score is not None
+                else None
+            ),
+            quality_notes=(
+                f'AI preliminary assessment: {draft.quality_summary}'
+                if draft.quality_assessment_source == 'ai_visual' and draft.quality_summary
+                else None
+            ),
+            quality_proof_images=[str(draft.image_url)] if draft.image_url else [],
+            verified_by_bolbazaar=False,
             image_url=draft.image_url,
             description=draft.description,
             tags=draft.tags,
@@ -686,6 +699,29 @@ class MarketplaceService:
             recent_ledger_entries=ledger_summary.recent_entries,
         )
 
+    LEGACY_DELIVERY_STATUS_MAP = {
+        'accepted': 'order_accepted',
+        'out_for_delivery': 'in_transit',
+    }
+
+    CANONICAL_DELIVERY_STATUS_MAP = {
+        'pending': 'pending',
+        'accepted': 'order_accepted',
+        'order_accepted': 'order_accepted',
+        'quality_check_pending': 'quality_check_pending',
+        'quality_approved': 'quality_approved',
+        'quality_rejected': 'quality_rejected',
+        'packed': 'packed',
+        'handover_pending': 'handover_pending',
+        'picked_up': 'picked_up',
+        'out_for_delivery': 'in_transit',
+        'in_transit': 'in_transit',
+        'delivered': 'delivered',
+        'buyer_confirmed': 'buyer_confirmed',
+        'settled': 'settled',
+        'cancelled': 'cancelled',
+    }
+
     ALLOWED_DELIVERY_TRANSITIONS = {
         'pending': {'accepted', 'cancelled'},
         'accepted': {'packed', 'cancelled'},
@@ -695,10 +731,43 @@ class MarketplaceService:
         'cancelled': set(),
     }
 
+    ROLE_DELIVERY_PERMISSIONS = {
+        'seller': {'packed', 'handover_pending', 'cancelled'},
+        'ops': {'quality_check_pending', 'quality_approved', 'quality_rejected', 'picked_up', 'in_transit', 'delivered', 'settled'},
+        'buyer': {'buyer_confirmed'},
+    }
+
+    DELIVERY_TRANSITIONS_V2 = {
+        'pending': {'order_accepted', 'cancelled'},
+        'order_accepted': {'quality_check_pending', 'packed', 'cancelled'},
+        'quality_check_pending': {'quality_approved', 'quality_rejected', 'cancelled'},
+        'quality_approved': {'packed', 'picked_up', 'cancelled'},
+        'quality_rejected': {'cancelled'},
+        'packed': {'handover_pending', 'picked_up', 'cancelled'},
+        'handover_pending': {'picked_up', 'cancelled'},
+        'picked_up': {'in_transit', 'cancelled'},
+        'in_transit': {'delivered', 'cancelled'},
+        'delivered': {'buyer_confirmed', 'settled'},
+        'buyer_confirmed': {'settled'},
+        'settled': set(),
+        'cancelled': set(),
+    }
+
+    def _canonical_delivery_status(self, status: str) -> str:
+        return self.CANONICAL_DELIVERY_STATUS_MAP.get(status, status)
+
+    def _legacy_delivery_status(self, status: str) -> str:
+        return self.LEGACY_DELIVERY_STATUS_MAP.get(status, status)
+
+    def _delivery_status_label(self, status: str) -> str:
+        return self._canonical_delivery_status(status).replace('_', ' ')
+
     def place_order(self, payload: OrderCreate) -> Order:
         listing = self.store.get_listing(payload.listing_id)
         if listing is None:
             raise ValueError('Listing not found')
+        if getattr(listing, 'quality_status', None) == 'rejected':
+            raise ValueError('Rejected listings cannot be ordered')
         if payload.quantity_kg > listing.available_kg:
             raise ValueError('Requested quantity exceeds available stock')
 
@@ -795,7 +864,7 @@ class MarketplaceService:
 
         if decision == 'accept':
             order.status = 'accepted'
-            order.fulfillment_status = 'accepted'
+            order.fulfillment_status = 'order_accepted'
             listing.available_kg = max(0.0, round(listing.available_kg - order.quantity_kg, 2))
             if listing.available_kg == 0.0:
                 listing.status = 'sold_out'
@@ -828,7 +897,8 @@ class MarketplaceService:
                     longitude=buyer_lng,
                     distance_km=distance,
                     delivery_fee=order.delivery_fee,
-                    status='accepted',
+                    status='order_accepted',
+                    current_actor_role='ops' if listing.quality_status == 'pending' else 'seller',
                 )
                 self.store.save_delivery(delivery)
         else:
@@ -1024,7 +1094,7 @@ class MarketplaceService:
                 delivery_mode='delivery',
                 delivery_address=member.delivery_address,
                 pool_id=pool.id,
-                fulfillment_status='accepted',
+                fulfillment_status='order_accepted',
             )
             distance = self.geo.haversine_km(seller_lat, seller_lng, member.latitude, member.longitude)
             fee = self.geo.estimate_delivery_fee(distance)
@@ -1047,7 +1117,8 @@ class MarketplaceService:
                 longitude=member.longitude,
                 distance_km=distance,
                 delivery_fee=fee,
-                status='accepted',
+                status='order_accepted',
+                current_actor_role='ops' if listing.quality_status == 'pending' else 'seller',
             )
             self.store.save_delivery(delivery)
             created_deliveries.append(delivery)
@@ -1094,32 +1165,142 @@ class MarketplaceService:
             items = [d for d in items if d.seller_id == seller_id]
         if buyer_id:
             items = [d for d in items if d.buyer_id == buyer_id]
+        for delivery in items:
+            canonical_status = self._canonical_delivery_status(delivery.status)
+            if canonical_status != delivery.status:
+                delivery.status = canonical_status
         return sorted(items, key=lambda d: d.created_at, reverse=True)
 
     def list_buyer_demand_requests(self, buyer_id: str) -> list[DemandRequest]:
         items = [r for r in self.store.list_demand_requests() if r.buyer_id == buyer_id]
         return sorted(items, key=lambda r: r.created_at, reverse=True)
 
-    def advance_delivery(self, delivery_id: str, next_status: str) -> Delivery:
+    def list_pending_quality_checks(self) -> list[Listing]:
+        items = [listing for listing in self.store.list_listings() if listing.quality_status == 'pending']
+        return sorted(items, key=lambda item: item.created_at, reverse=True)
+
+    def update_listing_quality(self, listing_id: str, payload: ListingQualityUpdateIn) -> Listing:
+        listing = self.store.get_listing(listing_id)
+        if listing is None:
+            raise ValueError('Listing not found')
+
+        if payload.status == 'approved' and payload.grade is None:
+            raise ValueError('Approved quality checks must include a grade')
+
+        next_grade = payload.grade if payload.grade is not None else None
+        listing.quality_status = payload.status
+        listing.quality_grade = next_grade or listing.quality_grade
+        listing.quality_confidence = payload.confidence
+        listing.quality_notes = payload.notes
+        listing.quality_proof_images = payload.proof_images or listing.quality_proof_images
+        listing.verified_by_bolbazaar = payload.status == 'approved'
+        listing.quality_checked_at = datetime.utcnow()
+        listing.quality_checked_by = payload.checked_by
+
+        if payload.status == 'approved' and next_grade is not None:
+            listing.quality_grade = next_grade
+            listing.freshness_label = f'BolBazaar Verified Grade {next_grade}'
+        elif payload.status == 'rejected':
+            listing.freshness_label = 'Quality rejected'
+        else:
+            listing.freshness_label = 'Quality pending'
+
+        self.store.save_listing(listing)
+
+        for delivery in [item for item in self.store.list_deliveries() if item.order_id in {order.id for order in self.store.list_orders() if order.listing_id == listing.id}]:
+            canonical = self._canonical_delivery_status(delivery.status)
+            if payload.status == 'approved' and canonical in {'order_accepted', 'quality_check_pending'}:
+                delivery.status = 'quality_approved'
+                delivery.current_actor_role = 'seller'
+            elif payload.status == 'rejected' and canonical != 'cancelled':
+                delivery.status = 'quality_rejected'
+                delivery.current_actor_role = 'ops'
+            delivery.updated_at = datetime.utcnow()
+            self.store.save_delivery(delivery)
+            order = self.store.get_order(delivery.order_id)
+            if order:
+                order.fulfillment_status = delivery.status
+                if payload.status == 'rejected':
+                    order.quality_issue_reported = True
+                    order.quality_issue_notes = payload.notes
+                self.store.save_order(order)
+
+        return listing
+
+    def build_ops_metrics(self) -> OpsMetricSnapshot:
+        listings = self.store.list_listings()
+        deliveries = [delivery for delivery in self.list_deliveries() if delivery.status != 'cancelled']
+        orders = self.store.list_orders()
+        pools = self.store.list_commit_pools()
+
+        verified_listing_ids = {listing.id for listing in listings if listing.verified_by_bolbazaar and listing.quality_status == 'approved'}
+        completed_statuses = {'delivered', 'buyer_confirmed', 'settled'}
+        active_statuses = {'order_accepted', 'quality_check_pending', 'quality_approved', 'packed', 'handover_pending', 'picked_up', 'in_transit'}
+
+        return OpsMetricSnapshot(
+            total_listings=len(listings),
+            verified_listings=len([listing for listing in listings if listing.quality_status == 'approved']),
+            pending_quality_checks=len([listing for listing in listings if listing.quality_status == 'pending']),
+            rejected_listings=len([listing for listing in listings if listing.quality_status == 'rejected']),
+            active_deliveries=len([delivery for delivery in deliveries if delivery.status in active_statuses]),
+            completed_deliveries=len([delivery for delivery in deliveries if delivery.status in completed_statuses]),
+            demand_pools_matched=len([pool for pool in pools if pool.status in {'committed', 'fulfilling', 'fulfilled'}]),
+            estimated_supply_matched_kg=round(sum(order.quantity_kg for order in orders if order.status in {'accepted', 'completed'}), 2),
+            orders_fulfilled_through_verified_supply=len([
+                order for order in orders
+                if order.listing_id in verified_listing_ids and order.status in {'accepted', 'completed'}
+            ]),
+        )
+
+    def build_ops_dashboard(self) -> OpsDashboardResponse:
+        listings = self.store.list_listings()
+        active_delivery_statuses = {'order_accepted', 'quality_check_pending', 'quality_approved', 'packed', 'handover_pending', 'picked_up', 'in_transit'}
+        return OpsDashboardResponse(
+            pending_quality_checks=sorted([listing for listing in listings if listing.quality_status == 'pending'], key=lambda item: item.created_at, reverse=True),
+            verified_listings=sorted([listing for listing in listings if listing.quality_status == 'approved'], key=lambda item: item.created_at, reverse=True),
+            rejected_listings=sorted([listing for listing in listings if listing.quality_status == 'rejected'], key=lambda item: item.created_at, reverse=True),
+            active_deliveries=[delivery for delivery in self.list_deliveries() if delivery.status in active_delivery_statuses],
+            metrics=self.build_ops_metrics(),
+        )
+
+    def advance_delivery(self, delivery_id: str, next_status: str, *, actor_role: str | None = None, actor_id: str | None = None) -> Delivery:
         delivery = self.store.get_delivery(delivery_id)
         if delivery is None:
             raise ValueError('Delivery not found')
-        allowed = self.ALLOWED_DELIVERY_TRANSITIONS.get(delivery.status, set())
+        current_status = self._canonical_delivery_status(delivery.status)
+        next_status = self._canonical_delivery_status(next_status)
+        allowed = self.DELIVERY_TRANSITIONS_V2.get(current_status, set())
         if next_status not in allowed:
-            raise ValueError(f'Cannot move delivery from {delivery.status} to {next_status}')
+            raise ValueError(f'Cannot move delivery from {current_status} to {next_status}')
+        if actor_role is not None:
+            permitted = self.ROLE_DELIVERY_PERMISSIONS.get(actor_role, set())
+            if next_status not in permitted and next_status != 'cancelled':
+                raise ValueError(f'{actor_role} cannot move delivery to {next_status}')
 
         delivery.status = next_status
+        delivery.last_actor_role = actor_role
+        delivery.last_actor_id = actor_id
+        delivery.current_actor_role = (
+            'seller' if next_status in {'quality_approved', 'order_accepted'} else
+            'ops' if next_status in {'quality_check_pending', 'packed', 'handover_pending', 'picked_up', 'in_transit'} else
+            'buyer' if next_status == 'delivered' else
+            None
+        )
+        if next_status == 'handover_pending':
+            delivery.handover_confirmed_at = datetime.utcnow()
         delivery.updated_at = datetime.utcnow()
         self.store.save_delivery(delivery)
 
         order = self.store.get_order(delivery.order_id)
         if order:
             order.fulfillment_status = next_status
-            if next_status == 'delivered':
+            if next_status in {'buyer_confirmed', 'settled'}:
                 order.status = 'completed'
+            if next_status == 'quality_rejected':
+                order.quality_issue_reported = True
             self.store.save_order(order)
 
-        if next_status == 'delivered':
+        if next_status in {'buyer_confirmed', 'settled'}:
             req = next((r for r in self.store.list_demand_requests() if r.order_id == delivery.order_id), None)
             if req:
                 req.status = 'fulfilled'
@@ -1130,11 +1311,50 @@ class MarketplaceService:
                 pool = self.store.get_commit_pool(delivery.pool_id)
                 if pool:
                     pool_deliveries = [d for d in self.store.list_deliveries() if d.pool_id == pool.id]
-                    if pool_deliveries and all(d.status == 'delivered' for d in pool_deliveries):
+                    canonical_pool_statuses = [self._canonical_delivery_status(d.status) for d in pool_deliveries]
+                    if canonical_pool_statuses and all(status in {'buyer_confirmed', 'settled'} for status in canonical_pool_statuses):
                         pool.status = 'fulfilled'
-                    elif any(d.status in {'packed', 'out_for_delivery'} for d in pool_deliveries):
+                    elif any(status in {'packed', 'handover_pending', 'picked_up', 'in_transit', 'delivered'} for status in canonical_pool_statuses):
                         pool.status = 'fulfilling'
                     pool.updated_at = datetime.utcnow()
                     self.store.save_commit_pool(pool)
+        return delivery
+
+    def advance_delivery_for_actor(self, delivery_id: str, payload: DeliveryAdvanceRequestIn) -> Delivery:
+        delivery = self.store.get_delivery(delivery_id)
+        if delivery is None:
+            raise ValueError('Delivery not found')
+        if payload.actor_role == 'seller':
+            if payload.actor_id and payload.actor_id != delivery.seller_id:
+                raise ValueError('Seller cannot advance another seller delivery')
+        if payload.actor_role == 'buyer':
+            if payload.actor_id and delivery.buyer_id and payload.actor_id != delivery.buyer_id:
+                raise ValueError('Buyer cannot advance another buyer delivery')
+        return self.advance_delivery(
+            delivery_id,
+            payload.next_status,
+            actor_role=payload.actor_role,
+            actor_id=payload.actor_id,
+        )
+
+    def confirm_buyer_delivery(self, delivery_id: str, payload: BuyerDeliveryConfirmIn) -> Delivery:
+        delivery = self.store.get_delivery(delivery_id)
+        if delivery is None:
+            raise ValueError('Delivery not found')
+        if delivery.buyer_id and delivery.buyer_id != payload.buyer_id:
+            raise ValueError('Buyer cannot confirm another buyer delivery')
+        if self._canonical_delivery_status(delivery.status) not in {'delivered', 'buyer_confirmed'}:
+            raise ValueError('Delivery is not ready for buyer confirmation')
+        delivery = self.advance_delivery(
+            delivery_id,
+            'buyer_confirmed',
+            actor_role='buyer',
+            actor_id=payload.buyer_id,
+        )
+        order = self.store.get_order(delivery.order_id)
+        if order and payload.quality_issue:
+            order.quality_issue_reported = True
+            order.quality_issue_notes = payload.notes
+            self.store.save_order(order)
         return delivery
 

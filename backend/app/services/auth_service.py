@@ -74,6 +74,8 @@ class AuthService:
             request_record.delivery_status = 'preview'
             if payload.role == 'seller':
                 note = 'Seller login stays mapped to the WhatsApp number already used for onboarding.'
+            elif payload.role == 'ops':
+                note = 'Ops login is running in demo preview mode for BolBazaar operations staff.'
             else:
                 note = 'Buyer OTP is running in demo preview mode until an SMS provider is connected.'
 
@@ -122,5 +124,6 @@ class AuthService:
                 seller_id=seller_profile.seller_id if seller_profile else request_record.seller_id,
                 seller_name=seller_profile.seller_name if seller_profile else None,
                 store_name=seller_profile.store_name if seller_profile else None,
+                ops_id=request_record.phone_number if request_record.role == 'ops' else None,
             )
         )

@@ -9,6 +9,16 @@ import DataTable from './DataTable';
 import KpiCard from './KpiCard';
 import StatusBadge from './StatusBadge';
 
+function orderStatusLabel(status: string): string {
+  const labels: Record<string, string> = {
+    pending: 'Pending',
+    accepted: 'Accepted',
+    rejected: 'Rejected',
+    completed: 'Completed',
+  };
+  return labels[status] || status;
+}
+
 function averagePrice(listings: Listing[]) {
   if (listings.length === 0) return 0;
   return Math.round(listings.reduce((sum, listing) => sum + listing.price_per_kg, 0) / listings.length);
@@ -62,6 +72,7 @@ export default function BuyerOverview({
   const [demandNeededBy, setDemandNeededBy] = useState('');
   const [demandSaving, setDemandSaving] = useState(false);
   const [demandNotice, setDemandNotice] = useState<string | null>(null);
+  const [verifiedOnly, setVerifiedOnly] = useState(false);
 
   const acceptedOrders = useMemo(
     () => orders.filter((order) => order.status === 'accepted' || order.status === 'completed'),
@@ -202,6 +213,10 @@ export default function BuyerOverview({
     }
   };
 
+  const visibleListings = verifiedOnly
+    ? listings.filter((listing) => listing.verified_by_bolbazaar && listing.quality_status === 'approved')
+    : listings;
+
   return (
     <div className="bb-page">
       <section className="bb-page-copy">
@@ -302,6 +317,10 @@ export default function BuyerOverview({
             </div>
             <div className="bb-filter-bar">
               <Filters query={query} setQuery={onQueryChange} maxPrice={maxPrice} setMaxPrice={onMaxPriceChange} language={language} />
+              <label className="mini-pill" style={{ gap: 8 }}>
+                <input type="checkbox" checked={verifiedOnly} onChange={(event) => setVerifiedOnly(event.target.checked)} />
+                Verified only
+              </label>
             </div>
           </section>
 
@@ -379,16 +398,21 @@ export default function BuyerOverview({
             </div>
             <StatusBadge label={loading ? 'Refreshing' : 'Live feed'} tone={loading ? 'warning' : 'success'} />
           </div>
-          {listings.length > 0 ? (
+          {visibleListings.length > 0 ? (
             <div className="listing-grid">
-              {listings.map((listing) => (
+              {visibleListings.map((listing) => (
                 <ListingCard key={listing.id} listing={listing} language={language} onOrder={onOrder} />
               ))}
+            </div>
+          ) : loading ? (
+            <div className="bb-empty-state">
+              <strong>Loading verified marketplace</strong>
+              <p>BolBazaar is refreshing graded supply, seller details, and live availability.</p>
             </div>
           ) : (
             <div className="bb-empty-state">
               <strong>No marketplace matches</strong>
-              <p>Adjust the current query or max price to widen the market view.</p>
+              <p>{verifiedOnly ? 'No BolBazaar Verified lots match the current filters.' : 'Adjust the search or max price to widen the market view.'}</p>
             </div>
           )}
         </section>
@@ -412,7 +436,7 @@ export default function BuyerOverview({
                 {
                   key: 'status',
                   label: 'Status',
-                  render: (row: Order) => <StatusBadge label={row.status} tone={row.status === 'accepted' || row.status === 'completed' ? 'success' : row.status === 'pending' ? 'warning' : 'neutral'} />,
+                  render: (row: Order) => <StatusBadge label={orderStatusLabel(row.status)} tone={row.status === 'accepted' || row.status === 'completed' ? 'success' : row.status === 'pending' ? 'warning' : 'neutral'} />,
                 },
                 { key: 'value', label: 'Value', align: 'right', render: (row: Order) => `Rs ${row.total_price}` },
               ]}

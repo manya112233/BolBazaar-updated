@@ -6,7 +6,7 @@ import re
 from datetime import datetime
 from typing import Any
 
-from app.schemas import LedgerCaptureMode, LedgerEntry, ProduceQualityAssessment, SellerDashboard, SellerProfile, SellerSession
+from app.schemas import DeliveryAdvanceRequestIn, LedgerCaptureMode, LedgerEntry, ProduceQualityAssessment, SellerDashboard, SellerProfile, SellerSession
 from app.services.geo_service import GeoService
 from app.services.marketplace import MarketplaceService
 from app.services.whatsapp_service import WhatsAppService
@@ -87,6 +87,12 @@ COPY: dict[str, dict[str, str]] = {
         'listings_empty': 'No live listings right now. Use New listing from the menu.',
         'profile_title': 'Your seller profile',
         'duplicate_listing': 'That same listing text was already processed just now, so I skipped the duplicate.',
+        'deliveries_empty': 'No active deliveries right now. Delivery tracking will appear here after you accept delivery orders.',
+        'delivery_invalid_transition': 'That delivery action is not allowed right now. Reply DELIVERIES to see the next valid step.',
+        'delivery_not_found': 'Delivery was not found for this seller. Reply DELIVERIES to see your active deliveries.',
+        'delivery_status_title': 'Your active deliveries:',
+        'quality_empty': 'No quality-tracked listings yet. Create a listing first and BolBazaar will show its verification state here.',
+        'status_title': 'Seller status summary',
     },
     'hi': {
         'welcome_language': 'BolBazaar में आपका स्वागत है। विक्रेता पंजीकरण शुरू करने के लिए भाषा चुनें।',
@@ -256,6 +262,16 @@ class SellerFlowService:
             if order_response is not None:
                 return order_response
 
+        delivery_command = self._parse_delivery_command(action)
+        if delivery_command is not None:
+            delivery_response = self._handle_delivery_command(
+                profile=profile,
+                delivery_id=delivery_command[0],
+                command=delivery_command[1],
+            )
+            if delivery_response is not None:
+                return delivery_response
+
         routed_command = self._route_active_command(profile, action)
         if routed_command is not None:
             return routed_command
@@ -312,7 +328,9 @@ class SellerFlowService:
 
     def _copy(self, profile: SellerProfile, key: str) -> str:
         language = profile.preferred_language if profile.preferred_language in COPY else 'hi'
-        return COPY[language][key]
+        if key in COPY[language]:
+            return COPY[language][key]
+        return COPY['en'][key]
 
     def _is_hindi(self, profile: SellerProfile) -> bool:
         return profile.preferred_language == 'hi'
@@ -1439,6 +1457,40 @@ class SellerFlowService:
             ),
         )
 
+    def _is_deliveries_request(self, action: str) -> bool:
+        return self._matches_command(
+            action,
+            exact=('deliveries', 'delivery'),
+            phrases=(
+                'show deliveries',
+                'open deliveries',
+                'my deliveries',
+                'delivery status',
+            ),
+        )
+
+    def _is_quality_request(self, action: str) -> bool:
+        return self._matches_command(
+            action,
+            exact=('quality',),
+            phrases=(
+                'quality status',
+                'show quality',
+                'my quality',
+            ),
+        ) or action.startswith('quality ')
+
+    def _is_status_request(self, action: str) -> bool:
+        return self._matches_command(
+            action,
+            exact=('status',),
+            phrases=(
+                'show status',
+                'my status',
+                'seller status',
+            ),
+        )
+
     def _route_active_command(self, profile: SellerProfile, action: str) -> dict[str, Any] | None:
         if self._is_dashboard_request(action):
             return self._send_dashboard(profile)
@@ -1448,6 +1500,12 @@ class SellerFlowService:
             return self._send_live_listings(profile)
         if self._is_orders_request(action):
             return self._send_orders(profile)
+        if self._is_status_request(action):
+            return self._send_status(profile)
+        if self._is_deliveries_request(action):
+            return self._send_deliveries(profile)
+        if self._is_quality_request(action):
+            return self._send_quality_status(profile, action=action)
         if self._is_ledger_request(action):
             return self._send_ledger(profile)
         if self._is_demand_request(action):
@@ -1485,6 +1543,10 @@ class SellerFlowService:
     def _parse_order_decision(self, action: str) -> tuple[str, int | None, str | None] | None:
         accept_words = {'yes', 'y', 'accept', 'accepted', 'haan', 'ha', 'हाँ', 'हा'}
         reject_words = {'no', 'n', 'reject', 'rejected', 'nahi', 'nahin', 'नहीं', 'नही'}
+
+        explicit_match = re.match(r'^(accept|reject)\s+order\s+([a-z0-9_:-]+)$', action)
+        if explicit_match is not None:
+            return (explicit_match.group(1), None, explicit_match.group(2))
 
         if action.startswith('order_accept:'):
             order_id = action.split(':', 1)[1].strip()
@@ -1537,6 +1599,170 @@ class SellerFlowService:
 
     def _recent_orders(self, seller_id: str) -> list[Any]:
         return sorted(self._seller_orders(seller_id), key=lambda order: order.created_at, reverse=True)[:5]
+
+    def _seller_deliveries(self, seller_id: str) -> list[Any]:
+        list_deliveries = getattr(self.marketplace, 'list_deliveries', None)
+        if not callable(list_deliveries):
+            return []
+        return list_deliveries(seller_id=seller_id)
+
+    def _active_seller_deliveries(self, seller_id: str) -> list[Any]:
+        closed_statuses = {'delivered', 'buyer_confirmed', 'settled', 'cancelled'}
+        return [
+            delivery
+            for delivery in self._seller_deliveries(seller_id)
+            if getattr(delivery, 'status', '') not in closed_statuses
+        ]
+
+    def _find_seller_delivery(self, seller_id: str, delivery_id: str) -> Any | None:
+        for delivery in self._seller_deliveries(seller_id):
+            if delivery.id == delivery_id:
+                return delivery
+        return None
+
+    def _delivery_next_seller_action(self, status: str) -> tuple[str, str] | None:
+        canonical = getattr(self.marketplace, '_canonical_delivery_status', lambda value: value)(status)
+        next_actions = {
+            'order_accepted': ('packed', 'Pack'),
+            'quality_approved': ('packed', 'Pack'),
+            'packed': ('handover_pending', 'Handover'),
+        }
+        return next_actions.get(canonical)
+
+    def _parse_delivery_command(self, action: str) -> tuple[str, str] | None:
+        if action.startswith('delivery_advance:'):
+            parts = action.split(':', 2)
+            if len(parts) == 3 and parts[1] and parts[2]:
+                command = 'handover' if parts[2] == 'handover' else parts[2]
+                return parts[1], command
+        if action.startswith('delivery_cancel:'):
+            delivery_id = action.split(':', 1)[1].strip()
+            if delivery_id:
+                return delivery_id, 'cancel'
+
+        match = re.match(r'^delivery\s+([a-z0-9_:-]+)\s+(packed|handover|cancel)$', action)
+        if match is not None:
+            return match.group(1), match.group(2)
+        return None
+
+    def _send_deliveries(self, profile: SellerProfile) -> dict[str, Any]:
+        deliveries = self._active_seller_deliveries(profile.seller_id)
+        if not deliveries:
+            return self._send_text(profile, self._copy(profile, 'deliveries_empty'), handled='seller_deliveries')
+
+        body_lines = [self._copy(profile, 'delivery_status_title')]
+        rows: list[dict[str, str]] = []
+        for delivery in deliveries[:5]:
+            quantity = f'{delivery.quantity_kg:g}'
+            current_status = str(getattr(delivery, 'status', '')).replace('_', ' ')
+            body_lines.append(
+                f'- {delivery.id}: {delivery.product_name}, {delivery.buyer_name}, {quantity} kg, {current_status}'
+            )
+            next_action = self._delivery_next_seller_action(getattr(delivery, 'status', ''))
+            if next_action is not None:
+                action_status, action_label = next_action
+                action_id = 'handover' if action_status == 'handover_pending' else action_status
+                body_lines.append(f'  Next action: {action_label}')
+                rows.append({
+                    'id': f'delivery_advance:{delivery.id}:{action_id}',
+                    'title': f'{action_label} {quantity}kg',
+                    'description': f'{delivery.product_name} for {delivery.buyer_name}',
+                })
+            rows.append({
+                'id': f'delivery_cancel:{delivery.id}',
+                'title': f'Cancel {quantity}kg',
+                'description': f'{delivery.product_name} for {delivery.buyer_name}',
+            })
+
+        body_lines.append('Reply: delivery <id> packed | handover | cancel')
+        result = self.whatsapp.send_list_message(
+            to=profile.seller_id,
+            body='\n'.join(body_lines[:12]),
+            button_text='Deliveries',
+            sections=[{'title': 'Delivery actions', 'rows': rows[:10]}],
+        )
+        if not result.get('sent'):
+            self.whatsapp.send_text_message(to=profile.seller_id, body='\n'.join(body_lines))
+        return {'ok': True, 'handled': 'seller_deliveries'}
+
+    def _send_quality_status(self, profile: SellerProfile, *, action: str) -> dict[str, Any]:
+        listings = [
+            listing
+            for listing in self.store.list_listings()
+            if listing.seller_id == profile.seller_id
+        ]
+        if not listings:
+            return self._send_text(profile, self._copy(profile, 'quality_empty'), handled='seller_quality_status')
+
+        target_listing = None
+        parts = action.split()
+        if len(parts) >= 2:
+            listing_id = parts[1]
+            target_listing = next((listing for listing in listings if listing.id == listing_id), None)
+            listings = [target_listing] if target_listing is not None else []
+
+        if not listings:
+            return self._send_text(profile, self._copy(profile, 'quality_empty'), handled='seller_quality_status')
+
+        lines = ['Your quality checks:']
+        for index, listing in enumerate(sorted(listings, key=lambda item: item.created_at, reverse=True)[:5], start=1):
+            quality_label = listing.quality_status.title()
+            grade = f' Grade {listing.quality_grade}' if listing.quality_status == 'approved' and listing.quality_grade in {'A', 'B', 'C'} else ''
+            note = f' - {listing.quality_notes}' if listing.quality_notes else ''
+            lines.append(f'{index}. {listing.product_name} {listing.available_kg:g} kg - {quality_label}{grade}{note}')
+        return self._send_text(profile, '\n'.join(lines), handled='seller_quality_status')
+
+    def _send_status(self, profile: SellerProfile) -> dict[str, Any]:
+        listings = [listing for listing in self.store.list_listings() if listing.seller_id == profile.seller_id and listing.status == 'live']
+        pending_quality = [listing for listing in listings if listing.quality_status == 'pending']
+        pending_orders = [order for order in self._seller_orders(profile.seller_id) if order.status == 'pending']
+        deliveries = self._active_seller_deliveries(profile.seller_id)
+        ledger = self.marketplace.build_seller_ledger(profile.seller_id)
+        outstanding = ledger.summary.total_outstanding_amount if ledger is not None else 0
+
+        body = (
+            f"{self._copy(profile, 'status_title')}\n"
+            f"- Active listings: {len(listings)}\n"
+            f"- Pending quality checks: {len(pending_quality)}\n"
+            f"- Pending orders: {len(pending_orders)}\n"
+            f"- Active deliveries: {len(deliveries)}\n"
+            f"- Outstanding khata: Rs {outstanding:g}"
+        )
+        return self._send_text(profile, body, handled='seller_status')
+
+    def _handle_delivery_command(self, *, profile: SellerProfile, delivery_id: str, command: str) -> dict[str, Any] | None:
+        delivery = self._find_seller_delivery(profile.seller_id, delivery_id)
+        if delivery is None:
+            return self._send_text(profile, self._copy(profile, 'delivery_not_found'), handled='seller_delivery_not_found')
+
+        status_map = {
+            'packed': 'packed',
+            'handover': 'handover_pending',
+            'cancel': 'cancelled',
+        }
+        next_status = status_map.get(command)
+        if next_status is None:
+            return None
+
+        try:
+            updated = self.marketplace.advance_delivery_for_actor(
+                delivery.id,
+                DeliveryAdvanceRequestIn(
+                    next_status=next_status,
+                    actor_role='seller',
+                    actor_id=profile.seller_id,
+                ),
+            )
+        except ValueError:
+            return self._send_text(profile, self._copy(profile, 'delivery_invalid_transition'), handled='seller_delivery_invalid_transition')
+
+        body = (
+            f'Delivery updated: {updated.product_name} for {updated.buyer_name} is now {updated.status.replace("_", " ")}.'
+            if not self._is_hindi(profile)
+            else f'Delivery update ho gayi: {updated.product_name} for {updated.buyer_name} ab {updated.status.replace("_", " ")} hai.'
+        )
+        self.whatsapp.send_text_message(to=profile.seller_id, body=body)
+        return {'ok': True, 'handled': 'seller_delivery_updated'}
 
     def _find_seller_order(self, seller_id: str, order_id: str) -> Any | None:
         for order in self._seller_orders(seller_id):
@@ -2629,13 +2855,17 @@ class SellerFlowService:
             return self._send_text(profile, self._copy(profile, 'listings_empty'), handled='seller_listings')
         body_lines = ['आपकी लाइव लिस्टिंग:'] if self._is_hindi(profile) else ['Your live listings:']
         for item in dashboard.recent_listings:
+            quality_label = item.quality_status.replace('_', ' ').title()
+            verified_label = 'BolBazaar Verified' if item.verified else 'Unverified'
+            grade_label = f'Grade {item.quality_grade}' if item.quality_grade else 'Grade pending'
             if self._is_hindi(profile):
                 body_lines.append(
                     f'- {item.product_name}: {item.available_kg} किलो, Rs {item.price_per_kg}/किलो, पिकअप {item.pickup_location}'
                 )
             else:
                 body_lines.append(
-                    f'- {item.product_name}: {item.available_kg} kg at Rs {item.price_per_kg}/kg, pickup {item.pickup_location}'
+                    f'- {item.id}: {item.product_name}, {item.available_kg} kg at Rs {item.price_per_kg}/kg, '
+                    f'pickup {item.pickup_location}, quality {quality_label}, {grade_label}, {verified_label}'
                 )
         return self._send_text(profile, '\n'.join(body_lines), handled='seller_listings')
 
@@ -2654,12 +2884,9 @@ class SellerFlowService:
                 if order.status == 'pending':
                     line += '। जवाब दें: YES या NO'
             else:
-                line = f'- {status}: {quantity} kg {product_name}, {order.buyer_name}, pickup {order.pickup_time}'
+                line = f'- {status}: {order.id}, {quantity} kg {product_name}, {order.buyer_name}, pickup {order.pickup_time}'
                 if order.status == 'pending':
-                    line += '. Reply YES or NO'
-            if order.status == 'pending':
-                line = line.replace('YES \u092f\u093e NO', f'YES {index} \u092f\u093e NO {index}')
-                line = line.replace('YES or NO', f'YES {index} or NO {index}')
+                    line += f'. Reply YES {index}, NO {index}, ACCEPT ORDER {order.id}, or REJECT ORDER {order.id}'
             line = f'- {index}. {line[2:]}' if line.startswith('- ') else f'- {index}. {line}'
             body_lines.append(line)
 

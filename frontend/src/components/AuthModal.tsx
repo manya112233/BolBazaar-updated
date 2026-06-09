@@ -13,13 +13,15 @@ const authCopy = {
     buyerBody: 'Marketplace view with live listings, filters, and order booking.',
     seller: 'Seller',
     sellerBody: 'Seller cockpit with khata, pending orders, listings, and WhatsApp-linked stats.',
+    ops: 'Ops',
+    opsBody: 'BolBazaar Ops workspace for quality verification, managed delivery, and smart supply-chain metrics.',
     phone: 'Phone number',
     phonePlaceholder: 'Enter the number you use for BolBazaar',
     otp: 'OTP',
     otpPlaceholder: 'Enter the 6-digit code',
     demoOtp: 'Demo OTP',
     changeNumber: 'Change number',
-    chooseRole: 'Choose buyer or seller first.',
+    chooseRole: 'Choose buyer, seller, or ops first.',
     sendOtp: 'Send OTP',
     sending: 'Sending...',
     verify: 'Verify and continue',
@@ -28,29 +30,31 @@ const authCopy = {
     verifyError: 'Failed to verify OTP',
   },
   hi: {
-    eyebrow: 'रोल लॉगिन',
-    title: 'BolBazaar में लॉगिन करें',
-    otpTitle: 'OTP दर्ज करें',
-    close: 'बंद करें',
-    buyer: 'खरीदार',
-    buyerBody: 'लाइव लिस्टिंग, फिल्टर और ऑर्डर बुकिंग वाला मार्केटप्लेस व्यू।',
-    seller: 'विक्रेता',
-    sellerBody: 'खाता, पेंडिंग ऑर्डर, लिस्टिंग और WhatsApp-linked stats वाला seller cockpit.',
-    phone: 'फोन नंबर',
-    phonePlaceholder: 'BolBazaar के लिए इस्तेमाल किया गया नंबर दर्ज करें',
+    eyebrow: 'Role login',
+    title: 'BolBazaar login',
+    otpTitle: 'OTP enter karein',
+    close: 'Close',
+    buyer: 'Buyer',
+    buyerBody: 'Live listings, filters, aur order booking wala marketplace view.',
+    seller: 'Seller',
+    sellerBody: 'Khata, pending orders, listings, aur WhatsApp-linked stats wala seller cockpit.',
+    ops: 'Ops',
+    opsBody: 'BolBazaar Ops workspace jahan quality verification, managed delivery, aur smart supply-chain metrics dikhte hain.',
+    phone: 'Phone number',
+    phonePlaceholder: 'BolBazaar ke liye number enter karein',
     otp: 'OTP',
-    otpPlaceholder: '6 अंकों का कोड दर्ज करें',
+    otpPlaceholder: '6-digit code enter karein',
     demoOtp: 'Demo OTP',
-    changeNumber: 'नंबर बदलें',
-    chooseRole: 'पहले buyer या seller चुनें।',
-    sendOtp: 'OTP भेजें',
-    sending: 'भेजा जा रहा है...',
-    verify: 'Verify करके आगे बढ़ें',
-    verifying: 'Verify हो रहा है...',
-    sendError: 'OTP भेजने में समस्या हुई',
-    verifyError: 'OTP verify करने में समस्या हुई',
+    changeNumber: 'Number badlein',
+    chooseRole: 'Pehle buyer, seller, ya ops chunein.',
+    sendOtp: 'OTP bhejein',
+    sending: 'Bheja ja raha hai...',
+    verify: 'Verify karke aage badhein',
+    verifying: 'Verify ho raha hai...',
+    sendError: 'OTP bhejne mein samasya hui',
+    verifyError: 'OTP verify karne mein samasya hui',
   },
-};
+} as const;
 
 export default function AuthModal({
   language,
@@ -117,7 +121,7 @@ export default function AuthModal({
               className={language === 'hi' ? 'language-switch-active' : ''}
               onClick={() => onLanguageChange('hi')}
             >
-              हिंदी
+              Hindi
             </button>
           </div>
         </div>
@@ -131,20 +135,16 @@ export default function AuthModal({
 
         {!otpStep && (
           <div className="role-grid">
-            <button
-              className={`role-card ${role === 'buyer' ? 'role-card-active' : ''}`}
-              onClick={() => setRole('buyer')}
-            >
-              <strong>{copy.buyer}</strong>
-              <span>{copy.buyerBody}</span>
-            </button>
-            <button
-              className={`role-card ${role === 'seller' ? 'role-card-active' : ''}`}
-              onClick={() => setRole('seller')}
-            >
-              <strong>{copy.seller}</strong>
-              <span>{copy.sellerBody}</span>
-            </button>
+            {(['buyer', 'seller', 'ops'] as const).map((roleId) => (
+              <button
+                key={roleId}
+                className={`role-card ${role === roleId ? 'role-card-active' : ''}`}
+                onClick={() => setRole(roleId)}
+              >
+                <strong>{copy[roleId]}</strong>
+                <span>{copy[`${roleId}Body`]}</span>
+              </button>
+            ))}
           </div>
         )}
 

@@ -20,14 +20,19 @@ import {
   commitToPool,
   fetchDeliveries,
   advanceDelivery,
+  advanceDeliveryForActor,
+  confirmBuyerDelivery,
+  fetchOpsDashboard,
+  updateListingQuality,
 } from './api';
 import AuthModal from './components/AuthModal';
 import BuyerWorkspace from './components/BuyerWorkspace';
 import LandingPage from './components/LandingPage';
 import OrderModal from './components/OrderModal';
+import OpsWorkspace from './components/OpsWorkspace';
 import SellerWorkspace from './components/SellerWorkspace';
 import DashboardLayout, { type DashboardSection } from './components/dashboard/DashboardLayout';
-import type { AuthRole, AuthSession, DemandPoolOpportunity, Insight, Listing, Notification, Order, SellerDashboard, SellerLedgerView, SellerProfile, CommitDemandPool, Delivery, DemandRequest, FulfillmentDeliveryStatus, DemandRequestCreate } from './types';
+import type { AuthRole, AuthSession, CommitDemandPool, Delivery, DemandPoolOpportunity, DemandRequest, Insight, Listing, Notification, OpsDashboardResponse, Order, SellerDashboard, SellerLedgerView, SellerProfile } from './types';
 
 const BUYER_SESSION_STORAGE_KEY = 'bolbazaar_buyer_session_id';
 const APP_SESSION_STORAGE_KEY = 'bolbazaar_web_session';
@@ -117,6 +122,8 @@ export default function App() {
   const [buyerDeliveries, setBuyerDeliveries] = useState<Delivery[]>([]);
   const [commitPools, setCommitPools] = useState<CommitDemandPool[]>([]);
   const [deliveries, setDeliveries] = useState<Delivery[]>([]);
+  const [opsDashboard, setOpsDashboard] = useState<OpsDashboardResponse | null>(null);
+  const [opsSection, setOpsSection] = useState('quality');
 
   const activeSellerId = sessionSellerId(session) || selectedSellerId;
 
@@ -140,6 +147,19 @@ export default function App() {
       setNotifications(nextNotifications);
       setSellers(nextSellers);
       setDemandPools(nextDemandPools);
+
+      if (currentRole === 'ops') {
+        const nextOpsDashboard = await fetchOpsDashboard();
+        setOpsDashboard(nextOpsDashboard);
+        setBuyerDemands([]);
+        setBuyerDeliveries([]);
+        setDashboard(null);
+        setLedger(null);
+        setInsight(null);
+        setCommitPools([]);
+        setDeliveries(nextOpsDashboard.active_deliveries);
+        return;
+      }
 
       const nextSellerId =
         preferredSellerId ||
@@ -176,15 +196,17 @@ export default function App() {
         setInsight(nextInsight);
         setCommitPools(pools);
         setDeliveries(sDeliveries);
+        setOpsDashboard(null);
       } else {
         setDashboard(null);
         setLedger(null);
         setInsight(null);
         setCommitPools([]);
         setDeliveries([]);
+        setOpsDashboard(null);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Something went wrong');
+      setError(err instanceof Error ? err.message : 'Could not load the BolBazaar demo workspace.');
     } finally {
       setLoading(false);
     }
@@ -224,6 +246,10 @@ export default function App() {
       setSelectedSellerId(sellerId);
       setSellerSection('overview');
       void loadAll(sellerId);
+    }
+    if (session?.role === 'ops') {
+      setOpsSection('quality');
+      void loadAll(null);
     }
     if (session?.role === 'buyer') {
       setBuyerSection('marketplace');
@@ -303,8 +329,14 @@ export default function App() {
     { id: 'profile', label: 'Verification/Profile', icon: 'profile' },
   ];
 
-  const currentSections = session?.role === 'seller' ? sellerSections : buyerSections;
-  const currentSectionId = session?.role === 'seller' ? sellerSection : buyerSection;
+  const opsSections: DashboardSection[] = [
+    { id: 'quality', label: 'Ops Verification', icon: 'listings', badge: opsDashboard?.pending_quality_checks.length },
+    { id: 'deliveries', label: 'Managed Delivery', icon: 'orders', badge: opsDashboard?.active_deliveries.length },
+    { id: 'metrics', label: 'Smart Supply Chain', icon: 'insights' },
+  ];
+
+  const currentSections = session?.role === 'seller' ? sellerSections : session?.role === 'ops' ? opsSections : buyerSections;
+  const currentSectionId = session?.role === 'seller' ? sellerSection : session?.role === 'ops' ? opsSection : buyerSection;
 
   const sectionScopedBuyerListings = useMemo(() => {
     if (buyerSection === 'sellers' && selectedSellerId) {
@@ -369,6 +401,8 @@ export default function App() {
           onNavigate={(nextSection) => {
             if (session.role === 'seller') {
               setSellerSection(nextSection);
+            } else if (session.role === 'ops') {
+              setOpsSection(nextSection);
             } else {
               setBuyerSection(nextSection);
             }
@@ -383,12 +417,14 @@ export default function App() {
           searchPlaceholder={
             session.role === 'buyer'
               ? 'Search produce, sellers, pickup area...'
+              : session.role === 'ops'
+                ? 'Search quality queue, delivery route, seller...'
               : 'Search orders, buyers, ledger context...'
           }
           language={language}
           onLanguageChange={setLanguage}
           unreadNotifications={unreadNotifications}
-          sessionLabel={session.role === 'seller' ? 'Seller session' : 'Buyer session'}
+          sessionLabel={session.role === 'seller' ? 'Seller session' : session.role === 'ops' ? 'Ops session' : 'Buyer session'}
           onLogout={() => setSession(null)}
         >
           {session.role === 'buyer' ? (
@@ -428,8 +464,16 @@ export default function App() {
                 await createDemandRequest(payload);
                 await loadAll(activeSellerId);
               }}
+              onConfirmDelivery={async (deliveryId, qualityIssue, notes) => {
+                await confirmBuyerDelivery(deliveryId, {
+                  buyer_id: session.phone_number,
+                  quality_issue: qualityIssue,
+                  notes,
+                });
+                await loadAll(activeSellerId);
+              }}
             />
-          ) : (
+          ) : session.role === 'seller' ? (
             <SellerWorkspace
               sectionId={sellerSection}
               language={language}
@@ -462,6 +506,23 @@ export default function App() {
               }}
               onAdvanceDelivery={async (deliveryId, status) => {
                 await advanceDelivery(deliveryId, status);
+                await loadAll(activeSellerId);
+              }}
+            />
+          ) : (
+            <OpsWorkspace
+              sectionId={opsSection}
+              dashboard={opsDashboard}
+              onUpdateQuality={async (listingId, payload) => {
+                await updateListingQuality(listingId, payload);
+                await loadAll(activeSellerId);
+              }}
+              onAdvanceDelivery={async (deliveryId, nextStatus) => {
+                await advanceDeliveryForActor(deliveryId, {
+                  next_status: nextStatus,
+                  actor_role: 'ops',
+                  actor_id: session.ops_id || session.phone_number,
+                });
                 await loadAll(activeSellerId);
               }}
             />

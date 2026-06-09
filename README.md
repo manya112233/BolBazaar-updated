@@ -4,6 +4,12 @@ BolBazaar is a WhatsApp-first AI agri-commerce operating system for farmers, FPO
 
 It turns informal seller messages into structured produce listings, buyer orders, khata records, demand signals, and seller insights without forcing sellers to install a new app.
 
+Judge-facing docs:
+
+- [JUDGES_README.md](/abs/path/c:/Users/manya/BolBazaar-updated/JUDGES_README.md)
+- [DEMO_SCRIPT.md](/abs/path/c:/Users/manya/BolBazaar-updated/DEMO_SCRIPT.md)
+- [DEMO_FLOW.md](/abs/path/c:/Users/manya/BolBazaar-updated/DEMO_FLOW.md)
+
 ## What It Does
 
 - Sellers create listings through WhatsApp text, voice notes, and images.
@@ -195,6 +201,24 @@ The backend exposes:
 
 This resets the demo store.
 
+### Reliable Smoke Test
+
+If the older pytest suite is noisy on Windows because of unrelated legacy failures or temp-dir permission issues, run:
+
+```powershell
+python backend\smoke_test_supply_chain.py
+```
+
+This script:
+
+- seeds demo data
+- fetches the ops dashboard
+- approves a pending listing
+- creates and accepts a delivery order
+- advances the delivery through seller and ops stages
+- confirms buyer receipt
+- prints clear `PASS` or `FAIL` lines
+
 ### Useful API Routes
 
 - `GET /api/health`
@@ -209,8 +233,31 @@ This resets the demo store.
 - `POST /api/sellers/{seller_id}/ledger/payments`
 - `GET /api/sellers/{seller_id}/insight`
 - `POST /api/buyers/demand-search`
+- `GET /api/ops/dashboard`
+- `GET /api/ops/metrics`
+- `GET /api/ops/quality/pending`
+- `POST /api/ops/listings/{listing_id}/quality`
+- `GET /api/ops/deliveries`
+- `POST /api/ops/deliveries/{delivery_id}/advance`
+- `POST /api/buyers/deliveries/{delivery_id}/confirm`
 - `GET /api/webhooks/whatsapp/inbound`
 - `POST /api/webhooks/whatsapp/inbound`
+
+## WhatsApp Delivery Commands
+
+Seller delivery management supports:
+
+- `DELIVERIES`
+- `STATUS`
+- `delivery <id> packed`
+- `delivery <id> handover`
+- `delivery <id> cancel`
+
+Interactive IDs supported in the WhatsApp flow:
+
+- `delivery_advance:<delivery_id>:packed`
+- `delivery_advance:<delivery_id>:handover`
+- `delivery_cancel:<delivery_id>`
 
 ## UI Overview
 
@@ -225,20 +272,36 @@ This resets the demo store.
 
 - seller dashboard with sidebar, KPI cards, listings, orders, khata, insights, and verification
 - buyer dashboard with marketplace, orders, sellers, and demand signals
+- ops dashboard with pending quality checks, verified/rejected listings, active deliveries, and supply-chain metrics
 
 ## Notes
 
 - This repo uses `.gitignore` to exclude local `.env` files, local virtualenvs, build outputs, logs, and service-account keys.
 - Some existing demo media files in `backend/data/media/listings/` are intentionally tracked for sample listings.
+- Local JSON fallback can create a repo-root `data/` runtime folder if commands are run from the repository root with relative storage paths. This folder is now ignored for local demo runs.
+
+## Frontend Build Note
+
+`node node_modules/typescript/bin/tsc -b` is the stable type-check command and should pass locally.
+
+If `npm run build` fails on Windows with an `esbuild spawn EPERM` error, that is typically an environment or shell permission issue rather than a Vite script problem. The package scripts are correct. In that case:
+
+- keep using `npm run dev` for the demo
+- use the TypeScript build check above for validation
+- rerun the production build from a normal local terminal outside restricted execution environments
 
 ## Recommended Demo Script
 
 1. Open the landing page.
 2. Show the WhatsApp-first seller story.
-3. Log in as seller and show operations, listings, and khata.
-4. Log in as buyer and place an order.
-5. Show seller order response.
-6. Show demand signals and AI insights.
+3. Send produce from the seller WhatsApp flow and show `quality_status = pending`.
+4. Log in as ops, approve the lot, and assign Grade A/B/C.
+5. Log in as buyer and show the `BolBazaar Verified` listing badge before placing an order.
+6. Accept the order as seller, then use seller WhatsApp `DELIVERIES` and `delivery <id> packed` / `handover`.
+7. Advance pickup, in-transit, and delivered states from ops.
+8. Confirm receipt as buyer and show the supply-chain impact metrics.
+
+For the full judge-ready walk-through, see [DEMO_FLOW.md](/abs/path/c:/Users/manya/BolBazaar-updated/DEMO_FLOW.md).
 
 ## License
 

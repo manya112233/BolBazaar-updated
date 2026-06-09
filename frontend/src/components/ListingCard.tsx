@@ -106,6 +106,16 @@ function localizeGrade(grade: string, language: AppLanguage): string {
   return gradeLabels[language][grade.toLowerCase()] || formatGrade(grade);
 }
 
+function qualityStateLabel(listing: Listing): string {
+  if (listing.quality_status === 'approved' && listing.verified_by_bolbazaar) {
+    return `BolBazaar Verified${listing.quality_grade && ['A', 'B', 'C'].includes(listing.quality_grade) ? ` Grade ${listing.quality_grade}` : ''}`;
+  }
+  if (listing.quality_status === 'rejected') {
+    return 'Rejected by Ops';
+  }
+  return 'Quality Pending';
+}
+
 function localizeSignal(signal: string, language: AppLanguage): string {
   if (language === 'en') return signal;
   return signalLabels[signal.toLowerCase()] || signal;
@@ -190,6 +200,7 @@ export default function ListingCard({
   const productName = localizeProductName(listing.product_name, language);
   const description = listingDescription(listing, productName, language);
   const visibleQualitySummary = qualitySummary(listing, productName, language);
+  const orderDisabled = listing.quality_status === 'rejected';
 
   return (
     <article className="card listing-card">
@@ -214,6 +225,9 @@ export default function ListingCard({
               <span className="mini-pill">{listing.source_channel === 'whatsapp' ? copy.whatsappListing : copy.demoListing}</span>
               {listing.latitude != null && listing.longitude != null && <span className="mini-pill">{copy.geoVerified}</span>}
               {isAiVisualGrade && <span className="mini-pill success-pill">{copy.aiPhotoChecked}</span>}
+              <span className={`mini-pill ${listing.quality_status === 'approved' ? 'success-pill' : listing.quality_status === 'rejected' ? 'danger-pill' : 'neutral-pill'}`}>
+                {qualityStateLabel(listing)}
+              </span>
             </div>
           </div>
           <span className="price">{copy.currency} {listing.price_per_kg}/{copy.kg}</span>
@@ -241,11 +255,19 @@ export default function ListingCard({
           <div>
             <span className="label">{copy.grade}</span>
             <strong>
-              {localizeGrade(listing.quality_grade, language)}
-              {listing.quality_score != null ? ` (${listing.quality_score}/100)` : ''}
+              {listing.quality_status === 'approved' && ['A', 'B', 'C'].includes(listing.quality_grade)
+                ? `Grade ${listing.quality_grade}`
+                : localizeGrade(listing.quality_grade, language)}
+              {listing.quality_confidence != null ? ` (${Math.round(listing.quality_confidence * 100)}%)` : listing.quality_score != null ? ` (${listing.quality_score}/100)` : ''}
             </strong>
           </div>
         </div>
+        {listing.quality_notes && (
+          <div className="quality-note">
+            <strong>{listing.verified_by_bolbazaar ? 'Ops Verification' : copy.qualityNote}</strong>
+            <p>{listing.quality_notes}</p>
+          </div>
+        )}
         {listing.quality_signals.length > 0 && (
           <div className="pill-row">
             {listing.quality_signals.slice(0, 3).map((signal) => (
@@ -256,8 +278,8 @@ export default function ListingCard({
           </div>
         )}
         <div className="action-cluster">
-          <button className="primary-button" onClick={() => onOrder(listing)}>
-            {copy.placeOrder}
+          <button className="primary-button" disabled={orderDisabled} onClick={() => onOrder(listing)}>
+            {orderDisabled ? 'Ordering Blocked' : copy.placeOrder}
           </button>
           {mapsHref && (
             <a className="ghost-button inline-link-button" href={mapsHref} target="_blank" rel="noreferrer">

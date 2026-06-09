@@ -19,7 +19,7 @@ export type DashboardSection = {
   badge?: number;
 };
 
-function titleFor(role: 'buyer' | 'seller', sectionId: string) {
+function titleFor(role: 'buyer' | 'seller' | 'ops', sectionId: string) {
   if (role === 'seller') {
     return (
       {
@@ -30,6 +30,16 @@ function titleFor(role: 'buyer' | 'seller', sectionId: string) {
         insights: 'AI Insights',
         profile: 'Verification',
       }[sectionId] || 'Seller Dashboard'
+    );
+  }
+
+  if (role === 'ops') {
+    return (
+      {
+        quality: 'Ops Verification',
+        deliveries: 'Managed Delivery',
+        metrics: 'Smart Supply Chain',
+      }[sectionId] || 'Ops Dashboard'
     );
   }
 
@@ -111,7 +121,7 @@ export default function DashboardLayout({
   children,
 }: {
   brand: string;
-  role: 'buyer' | 'seller';
+  role: 'buyer' | 'seller' | 'ops';
   sectionId: string;
   sections: DashboardSection[];
   onNavigate: (id: string) => void;
@@ -139,7 +149,7 @@ export default function DashboardLayout({
             <span className="bb-sidebar-brand-mark">BB</span>
             <span className="bb-sidebar-brand-copy">
               <strong>{brand}</strong>
-              <small>{role === 'seller' ? 'Seller OS' : 'Buyer OS'}</small>
+              <small>{role === 'seller' ? 'Seller OS' : role === 'ops' ? 'Ops OS' : 'Buyer OS'}</small>
             </span>
             <span className={`bb-sidebar-collapse ${isSidebarCollapsed ? 'is-collapsed' : ''}`}><Icon name="collapse" /></span>
           </button>
@@ -177,7 +187,7 @@ export default function DashboardLayout({
         <div className="bb-mobile-head">
           <div>
             <strong>{brand}</strong>
-            <small>{role === 'seller' ? 'Seller dashboard' : 'Buyer dashboard'}</small>
+            <small>{role === 'seller' ? 'Seller dashboard' : role === 'ops' ? 'Ops dashboard' : 'Buyer dashboard'}</small>
           </div>
           <button type="button" className="bb-icon-button" onClick={onToggleMobileSidebar} aria-label="Close navigation">
             <Icon name="close" />
@@ -211,7 +221,7 @@ export default function DashboardLayout({
               <Icon name="menu" />
             </button>
             <div className="bb-page-title">
-              <span>{role === 'seller' ? 'BolBazaar Seller Network' : 'BolBazaar Buyer Network'}</span>
+              <span>{role === 'seller' ? 'BolBazaar Seller Network' : role === 'ops' ? 'BolBazaar Ops Network' : 'BolBazaar Buyer Network'}</span>
               <strong>{pageTitle}</strong>
             </div>
           </div>

@@ -1,15 +1,20 @@
-import type { AuthRole, BuyerDemandSearchRequest, BuyerDemandSearchResponse, CommitDemandPool, Delivery, DemandPoolOpportunity, DemandPoolResponse, DemandRequest, DemandRequestCreate, FulfillmentDeliveryStatus, Insight, Listing, Notification, Order, OtpRequestResponse, OtpVerifyResponse, SellerDashboard, SellerLedgerView, SellerProfile } from './types';
+import type { AuthRole, BuyerDemandSearchRequest, BuyerDemandSearchResponse, CommitDemandPool, Delivery, DemandPoolOpportunity, DemandPoolResponse, DemandRequest, DemandRequestCreate, FulfillmentDeliveryStatus, Insight, Listing, ListingQualityGrade, ListingQualityStatus, Notification, OpsDashboardResponse, OpsMetricSnapshot, Order, OtpRequestResponse, OtpVerifyResponse, SellerDashboard, SellerLedgerView, SellerProfile } from './types';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
-  const response = await fetch(`${API_BASE}${path}`, {
-    headers: {
-      'Content-Type': 'application/json',
-      ...(options?.headers || {}),
-    },
-    ...options,
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE}${path}`, {
+      headers: {
+        'Content-Type': 'application/json',
+        ...(options?.headers || {}),
+      },
+      ...options,
+    });
+  } catch {
+    throw new Error('Could not reach the BolBazaar backend. Start the backend server and try again.');
+  }
 
   if (!response.ok) {
     const text = await response.text();
@@ -197,6 +202,54 @@ export async function advanceDelivery(deliveryId: string, status: FulfillmentDel
   const data = await request<{ ok: boolean; delivery: Delivery }>(`/api/deliveries/${deliveryId}/advance`, {
     method: 'POST',
     body: JSON.stringify({ status }),
+  });
+  return data.delivery;
+}
+
+export async function fetchOpsDashboard(): Promise<OpsDashboardResponse> {
+  return request<OpsDashboardResponse>('/api/ops/dashboard');
+}
+
+export async function fetchOpsMetrics(): Promise<OpsMetricSnapshot> {
+  return request<OpsMetricSnapshot>('/api/ops/metrics');
+}
+
+export async function updateListingQuality(
+  listingId: string,
+  payload: {
+    status: ListingQualityStatus;
+    grade?: ListingQualityGrade | null;
+    notes?: string;
+    checked_by: string;
+    confidence?: number | null;
+    proof_images?: string[];
+  },
+): Promise<Listing> {
+  const data = await request<{ ok: boolean; listing: Listing }>(`/api/ops/listings/${listingId}/quality`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+  return data.listing;
+}
+
+export async function advanceDeliveryForActor(
+  deliveryId: string,
+  payload: { next_status: FulfillmentDeliveryStatus; actor_role: AuthRole; actor_id?: string },
+): Promise<Delivery> {
+  const data = await request<{ ok: boolean; delivery: Delivery }>(`/api/ops/deliveries/${deliveryId}/advance`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+  return data.delivery;
+}
+
+export async function confirmBuyerDelivery(
+  deliveryId: string,
+  payload: { buyer_id: string; quality_issue?: boolean; notes?: string },
+): Promise<Delivery> {
+  const data = await request<{ ok: boolean; delivery: Delivery }>(`/api/buyers/deliveries/${deliveryId}/confirm`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
   });
   return data.delivery;
 }

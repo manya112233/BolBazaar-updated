@@ -7,6 +7,16 @@ import DataTable from './DataTable';
 import KpiCard from './KpiCard';
 import StatusBadge from './StatusBadge';
 
+function orderStatusLabel(status: string): string {
+  const labels: Record<string, string> = {
+    pending: 'Pending',
+    accepted: 'Accepted',
+    rejected: 'Rejected',
+    completed: 'Completed',
+  };
+  return labels[status] || status;
+}
+
 type SellerSectionId = 'overview' | 'listings' | 'orders' | 'ledger' | 'insights' | 'profile';
 
 export default function SellerOverview({
@@ -288,7 +298,7 @@ export default function SellerOverview({
                   {
                     key: 'status',
                     label: 'Status',
-                    render: (row: Order) => <StatusBadge label={row.status} tone={row.status === 'accepted' || row.status === 'completed' ? 'success' : row.status === 'pending' ? 'warning' : 'neutral'} />,
+                    render: (row: Order) => <StatusBadge label={orderStatusLabel(row.status)} tone={row.status === 'accepted' || row.status === 'completed' ? 'success' : row.status === 'pending' ? 'warning' : 'neutral'} />,
                   },
                   {
                     key: 'actions',
@@ -490,11 +500,11 @@ export default function SellerOverview({
             { key: 'qty', label: 'Qty', align: 'right', render: (row: Order) => `${row.quantity_kg} kg` },
             { key: 'pickup', label: 'Pickup', render: (row: Order) => row.pickup_time },
             { key: 'value', label: 'Value', align: 'right', render: (row: Order) => `Rs ${row.total_price}` },
-            {
-              key: 'status',
-              label: 'Status',
-              render: (row: Order) => <StatusBadge label={row.status} tone={row.status === 'accepted' || row.status === 'completed' ? 'success' : row.status === 'pending' ? 'warning' : 'neutral'} />,
-            },
+          {
+            key: 'status',
+            label: 'Status',
+            render: (row: Order) => <StatusBadge label={orderStatusLabel(row.status)} tone={row.status === 'accepted' || row.status === 'completed' ? 'success' : row.status === 'pending' ? 'warning' : 'neutral'} />,
+          },
             {
               key: 'actions',
               label: 'Action',

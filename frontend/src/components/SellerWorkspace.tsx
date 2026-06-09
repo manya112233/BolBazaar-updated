@@ -1,9 +1,22 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import type { AppLanguage } from '../App';
-import type { AuthSession, DemandPoolOpportunity, CommitDemandPool, Delivery, Insight, Listing, Notification, Order, SellerDashboard, SellerLedgerView, SellerProfile, FulfillmentDeliveryStatus } from '../types';
-import SellerOverview from './dashboard/SellerOverview';
-import DemandPoolBoard from './DemandPoolBoard';
+import type {
+  AuthSession,
+  CommitDemandPool,
+  Delivery,
+  DemandPoolOpportunity,
+  FulfillmentDeliveryStatus,
+  Insight,
+  Listing,
+  Notification,
+  Order,
+  SellerDashboard,
+  SellerLedgerView,
+  SellerProfile,
+} from '../types';
 import DeliveryBoard from './DeliveryBoard';
+import DemandPoolBoard from './DemandPoolBoard';
+import SellerOverview from './dashboard/SellerOverview';
 
 type SellerTab = 'dashboard' | 'demand_pools' | 'deliveries';
 
@@ -21,7 +34,6 @@ export default function SellerWorkspace(props: {
   loading: boolean;
   onRespondOrder: (orderId: string, decision: 'accept' | 'reject') => Promise<void>;
   onRecordLedgerPayment: (payload: { buyer_name: string; amount_paid: number; notes?: string }) => Promise<void>;
-  // New props for pooling & delivery
   commitPools?: CommitDemandPool[];
   listings?: Listing[];
   deliveries?: Delivery[];
@@ -35,9 +47,9 @@ export default function SellerWorkspace(props: {
   }, [props.sectionId]);
 
   const tabs: { id: SellerTab; label: string; badge?: number }[] = [
-    { id: 'dashboard', label: '🏪 Dashboard' },
-    { id: 'demand_pools', label: '🤝 Demand Pools', badge: props.commitPools?.filter(p => p.status === 'open' || p.status === 'forming').length },
-    { id: 'deliveries', label: '🚚 Deliveries', badge: props.deliveries?.filter(d => d.status !== 'delivered' && d.status !== 'cancelled').length },
+    { id: 'dashboard', label: 'Seller Dashboard' },
+    { id: 'demand_pools', label: 'Demand Pools', badge: props.commitPools?.filter((pool) => pool.status === 'open' || pool.status === 'forming').length },
+    { id: 'deliveries', label: 'Managed Delivery', badge: props.deliveries?.filter((delivery) => delivery.status !== 'delivered' && delivery.status !== 'cancelled').length },
   ];
 
   return (

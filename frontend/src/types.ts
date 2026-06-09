@@ -1,4 +1,6 @@
 export type ProductCategory = 'vegetables' | 'fruits' | 'grains' | 'spices' | 'other';
+export type ListingQualityStatus = 'pending' | 'approved' | 'rejected';
+export type ListingQualityGrade = 'A' | 'B' | 'C';
 
 export type Listing = {
   id: string;
@@ -15,6 +17,13 @@ export type Listing = {
   quality_summary?: string | null;
   quality_assessment_source: 'text_signal' | 'ai_visual';
   quality_signals: string[];
+  quality_status: ListingQualityStatus;
+  quality_confidence?: number | null;
+  quality_notes?: string | null;
+  quality_proof_images: string[];
+  verified_by_bolbazaar: boolean;
+  quality_checked_at?: string | null;
+  quality_checked_by?: string | null;
   image_url?: string | null;
   description?: string | null;
   tags: string[];
@@ -28,7 +37,7 @@ export type Listing = {
   created_at: string;
 };
 
-export type AuthRole = 'buyer' | 'seller';
+export type AuthRole = 'buyer' | 'seller' | 'ops';
 
 export type AuthSession = {
   role: AuthRole;
@@ -36,6 +45,7 @@ export type AuthSession = {
   seller_id?: string | null;
   seller_name?: string | null;
   store_name?: string | null;
+  ops_id?: string | null;
 };
 
 export type OtpRequestResponse = {
@@ -209,7 +219,22 @@ export type DemandPoolResponse = {
 };
 
 export type DeliveryMode = 'pickup' | 'delivery';
-export type FulfillmentDeliveryStatus = 'pending' | 'accepted' | 'packed' | 'out_for_delivery' | 'delivered' | 'cancelled';
+export type FulfillmentDeliveryStatus =
+  | 'pending'
+  | 'accepted'
+  | 'order_accepted'
+  | 'quality_check_pending'
+  | 'quality_approved'
+  | 'quality_rejected'
+  | 'packed'
+  | 'handover_pending'
+  | 'picked_up'
+  | 'out_for_delivery'
+  | 'in_transit'
+  | 'delivered'
+  | 'buyer_confirmed'
+  | 'settled'
+  | 'cancelled';
 export type DemandRequestStatus = 'open' | 'pooled' | 'committed' | 'fulfilled' | 'cancelled' | 'expired';
 export type DemandPoolStatus = 'forming' | 'open' | 'committed' | 'fulfilling' | 'fulfilled' | 'expired';
 
@@ -303,7 +328,31 @@ export type Delivery = {
   distance_km?: number | null;
   delivery_fee: number;
   status: FulfillmentDeliveryStatus;
+  current_actor_role?: AuthRole | null;
+  last_actor_role?: AuthRole | null;
+  last_actor_id?: string | null;
+  handover_confirmed_at?: string | null;
   eta?: string | null;
   created_at: string;
   updated_at: string;
+};
+
+export type OpsMetricSnapshot = {
+  total_listings: number;
+  verified_listings: number;
+  pending_quality_checks: number;
+  rejected_listings: number;
+  active_deliveries: number;
+  completed_deliveries: number;
+  demand_pools_matched: number;
+  estimated_supply_matched_kg: number;
+  orders_fulfilled_through_verified_supply: number;
+};
+
+export type OpsDashboardResponse = {
+  pending_quality_checks: Listing[];
+  verified_listings: Listing[];
+  rejected_listings: Listing[];
+  active_deliveries: Delivery[];
+  metrics: OpsMetricSnapshot;
 };

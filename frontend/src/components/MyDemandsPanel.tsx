@@ -3,6 +3,7 @@ import type { DemandRequest, Delivery } from '../types';
 type MyDemandsPanelProps = {
   demands: DemandRequest[];
   deliveries: Delivery[];
+  onConfirmDelivery?: (deliveryId: string, qualityIssue?: boolean, notes?: string) => Promise<void>;
 };
 
 function formatDate(iso: string): string {
@@ -13,7 +14,7 @@ function formatDate(iso: string): string {
   }
 }
 
-export default function MyDemandsPanel({ demands, deliveries }: MyDemandsPanelProps) {
+export default function MyDemandsPanel({ demands, deliveries, onConfirmDelivery }: MyDemandsPanelProps) {
   const deliveriesByBuyer = deliveries;
 
   return (
@@ -88,6 +89,16 @@ export default function MyDemandsPanel({ demands, deliveries }: MyDemandsPanelPr
                   </div>
                 )}
               </div>
+              {onConfirmDelivery && dlv.status === 'delivered' && (
+                <div className="action-row" style={{ marginTop: 12 }}>
+                  <button className="primary-button small" onClick={() => void onConfirmDelivery(dlv.id, false)}>
+                    Confirm received
+                  </button>
+                  <button className="ghost-button small" onClick={() => void onConfirmDelivery(dlv.id, true, 'Buyer raised a quality issue after delivery.')}>
+                    Raise quality issue
+                  </button>
+                </div>
+              )}
             </div>
           ))}
         </>

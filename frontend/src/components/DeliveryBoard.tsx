@@ -4,25 +4,84 @@ import type { Delivery, FulfillmentDeliveryStatus } from '../types';
 type DeliveryBoardProps = {
   deliveries: Delivery[];
   onAdvance: (deliveryId: string, status: FulfillmentDeliveryStatus) => Promise<void>;
-  role: 'seller' | 'buyer';
+  role: 'seller' | 'buyer' | 'ops';
 };
 
-const DELIVERY_STEPS: { key: FulfillmentDeliveryStatus; label: string; icon: string }[] = [
-  { key: 'accepted', label: 'Accepted', icon: '✓' },
-  { key: 'packed', label: 'Packed', icon: '📦' },
-  { key: 'out_for_delivery', label: 'In Transit', icon: '🚚' },
-  { key: 'delivered', label: 'Delivered', icon: '✅' },
+const DELIVERY_STEPS: { key: FulfillmentDeliveryStatus; label: string }[] = [
+  { key: 'order_accepted', label: 'Order Accepted' },
+  { key: 'quality_check_pending', label: 'Quality Check' },
+  { key: 'quality_approved', label: 'Quality Approved' },
+  { key: 'packed', label: 'Packed' },
+  { key: 'handover_pending', label: 'Ready for Pickup' },
+  { key: 'picked_up', label: 'Picked Up' },
+  { key: 'in_transit', label: 'In Transit' },
+  { key: 'delivered', label: 'Delivered' },
+  { key: 'buyer_confirmed', label: 'Buyer Confirmed' },
+  { key: 'settled', label: 'Settled' },
 ];
 
-const NEXT_STATUS: Partial<Record<FulfillmentDeliveryStatus, FulfillmentDeliveryStatus>> = {
-  accepted: 'packed',
-  packed: 'out_for_delivery',
-  out_for_delivery: 'delivered',
+const NEXT_STATUS_BY_ROLE: Record<'seller' | 'ops' | 'buyer', Partial<Record<FulfillmentDeliveryStatus, FulfillmentDeliveryStatus>>> = {
+  seller: {
+    order_accepted: 'packed',
+    quality_approved: 'packed',
+    packed: 'handover_pending',
+  },
+  ops: {
+    order_accepted: 'quality_check_pending',
+    quality_check_pending: 'quality_approved',
+    quality_approved: 'picked_up',
+    handover_pending: 'picked_up',
+    packed: 'picked_up',
+    picked_up: 'in_transit',
+    in_transit: 'delivered',
+    delivered: 'settled',
+  },
+  buyer: {
+    delivered: 'buyer_confirmed',
+  },
 };
 
+function labelForStatus(status: FulfillmentDeliveryStatus): string {
+  const labels: Partial<Record<FulfillmentDeliveryStatus, string>> = {
+    pending: 'Pending',
+    accepted: 'Order Accepted',
+    order_accepted: 'Order Accepted',
+    quality_check_pending: 'Quality Pending',
+    quality_approved: 'Quality Approved',
+    quality_rejected: 'Quality Rejected',
+    packed: 'Packed',
+    handover_pending: 'Ready for Pickup',
+    picked_up: 'Picked Up',
+    out_for_delivery: 'In Transit',
+    in_transit: 'In Transit',
+    delivered: 'Delivered',
+    buyer_confirmed: 'Buyer Confirmed',
+    settled: 'Settled',
+    cancelled: 'Cancelled',
+  };
+  return labels[status] || status.replace(/_/g, ' ');
+}
+
+function actorLabel(role: DeliveryBoardProps['role'] | null | undefined): string {
+  if (role === 'ops') return 'Ops team';
+  if (role === 'seller') return 'Seller';
+  if (role === 'buyer') return 'Buyer';
+  return 'System';
+}
+
+function deliveryErrorMessage(error: unknown): string {
+  if (!(error instanceof Error) || !error.message) {
+    return 'Could not update delivery status right now.';
+  }
+  if (error.message.toLowerCase().includes('invalid transition')) {
+    return 'That delivery step is not available from the current stage.';
+  }
+  return error.message;
+}
+
 function stepIndex(status: FulfillmentDeliveryStatus): number {
-  if (status === 'cancelled') return -1;
-  return DELIVERY_STEPS.findIndex((s) => s.key === status);
+  const canonical = status === 'accepted' ? 'order_accepted' : status === 'out_for_delivery' ? 'in_transit' : status;
+  return DELIVERY_STEPS.findIndex((step) => step.key === canonical);
 }
 
 export default function DeliveryBoard({ deliveries, onAdvance, role }: DeliveryBoardProps) {
@@ -35,7 +94,7 @@ export default function DeliveryBoard({ deliveries, onAdvance, role }: DeliveryB
     try {
       await onAdvance(deliveryId, nextStatus);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to advance');
+      setError(deliveryErrorMessage(err));
     } finally {
       setAdvancing(null);
     }
@@ -43,105 +102,77 @@ export default function DeliveryBoard({ deliveries, onAdvance, role }: DeliveryB
 
   return (
     <div className="delivery-board slide-in">
-      <h3>🚚 Delivery Tracking</h3>
+      <h3>Managed Delivery</h3>
 
       {deliveries.length === 0 && (
         <div className="empty-state card">
-          <div className="empty-icon">🚚</div>
+          <div className="empty-icon">Truck</div>
           <strong>No deliveries yet</strong>
-          <p>{role === 'seller' ? 'Commit to a demand pool or accept orders to start deliveries.' : 'Post a demand and your deliveries will appear here.'}</p>
+          <p>
+            {role === 'seller'
+              ? 'Accept orders or commit to a demand pool to start deliveries.'
+              : role === 'ops'
+                ? 'Ops-managed deliveries appear here after seller acceptance.'
+              : 'Buyer deliveries will appear here after order acceptance.'}
+          </p>
         </div>
       )}
 
-      {deliveries.map((dlv) => {
-        const currentIdx = stepIndex(dlv.status);
-        const next = NEXT_STATUS[dlv.status];
-        const isCancelled = dlv.status === 'cancelled';
+      {deliveries.map((delivery) => {
+        const currentIdx = stepIndex(delivery.status);
+        const nextStatus = NEXT_STATUS_BY_ROLE[role][delivery.status];
 
         return (
-          <div key={dlv.id} className="delivery-card card">
+          <div key={delivery.id} className="delivery-card card">
             <div className="delivery-card-header">
-              <h4>{dlv.product_name} — {dlv.quantity_kg} kg</h4>
-              <span className={`status-pill status-${dlv.status}`}>{dlv.status.replace(/_/g, ' ')}</span>
+              <h4>{delivery.product_name} - {delivery.quantity_kg} kg</h4>
+              <span className={`status-pill status-${delivery.status}`}>{labelForStatus(delivery.status)}</span>
             </div>
 
             <div className="delivery-info-grid">
               <div className="delivery-info-item">
-                <span className="info-label">{role === 'seller' ? 'Buyer' : 'Seller'}</span>
-                <span className="info-value">{role === 'seller' ? dlv.buyer_name : dlv.seller_name}</span>
+                <span className="info-label">Seller</span>
+                <span className="info-value">{delivery.seller_name}</span>
               </div>
-              {dlv.delivery_address && (
-                <div className="delivery-info-item">
-                  <span className="info-label">Address</span>
-                  <span className="info-value">{dlv.delivery_address}</span>
-                </div>
-              )}
               <div className="delivery-info-item">
-                <span className="info-label">Fee</span>
-                <span className="info-value">₹{dlv.delivery_fee.toFixed(0)}</span>
+                <span className="info-label">Buyer</span>
+                <span className="info-value">{delivery.buyer_name}</span>
               </div>
-              {dlv.distance_km != null && (
-                <div className="delivery-info-item">
-                  <span className="info-label">Distance</span>
-                  <span className="info-value">{dlv.distance_km.toFixed(1)} km</span>
-                </div>
-              )}
               <div className="delivery-info-item">
                 <span className="info-label">Mode</span>
-                <span className="info-value">{dlv.delivery_mode === 'delivery' ? '🚚 Delivery' : '📦 Pickup'}</span>
+              <span className="info-value">{delivery.delivery_mode === 'delivery' ? 'Managed Delivery' : 'Pickup'}</span>
+              </div>
+              <div className="delivery-info-item">
+                <span className="info-label">Managed by</span>
+                <span className="info-value">{actorLabel(delivery.current_actor_role || null)}</span>
               </div>
             </div>
 
-            {!isCancelled && (
-              <div className="delivery-stepper">
-                {DELIVERY_STEPS.map((step, idx) => {
-                  const isDone = idx <= currentIdx;
-                  const isActive = idx === currentIdx;
-                  return (
-                    <>
-                      <div
-                        key={step.key}
-                        className={`delivery-step ${isDone ? 'delivery-step-done' : ''} ${isActive ? 'delivery-step-active' : ''}`}
-                      >
-                        <div className="delivery-step-dot">{step.icon}</div>
-                        <span className="delivery-step-label">{step.label}</span>
-                      </div>
-                      {idx < DELIVERY_STEPS.length - 1 && (
-                        <div className={`delivery-step-line ${idx < currentIdx ? 'delivery-step-line-done' : ''}`} />
-                      )}
-                    </>
-                  );
-                })}
-              </div>
-            )}
+            <div className="delivery-stepper">
+              {DELIVERY_STEPS.map((step, idx) => (
+                <div
+                  key={step.key}
+                  className={`delivery-step ${idx <= currentIdx ? 'delivery-step-done' : ''} ${idx === currentIdx ? 'delivery-step-active' : ''}`}
+                >
+                  <div className="delivery-step-dot">{idx + 1}</div>
+                  <span className="delivery-step-label">{step.label}</span>
+                </div>
+              ))}
+            </div>
 
-            {isCancelled && (
-              <div style={{ padding: '10px 14px', borderRadius: 12, background: 'rgba(239,68,68,0.06)', color: '#b91c1c', fontWeight: 600 }}>
-                ❌ This delivery was cancelled
-              </div>
-            )}
-
-            {role === 'seller' && next && (
+            {nextStatus && (
               <div className="delivery-advance-row">
                 <button
                   className="primary-button small"
-                  disabled={advancing === dlv.id}
-                  onClick={() => handleAdvance(dlv.id, next)}
+                  disabled={advancing === delivery.id}
+                  onClick={() => void handleAdvance(delivery.id, nextStatus)}
                 >
-                  {advancing === dlv.id ? 'Updating...' : `Advance → ${next.replace(/_/g, ' ')}`}
+                  {advancing === delivery.id ? 'Updating...' : `Advance to ${labelForStatus(nextStatus)}`}
                 </button>
-                {dlv.status !== 'delivered' && (
-                  <button
-                    className="ghost-button small"
-                    disabled={advancing === dlv.id}
-                    onClick={() => handleAdvance(dlv.id, 'cancelled')}
-                  >
-                    Cancel delivery
-                  </button>
-                )}
-                {error && advancing === null && <span className="error-text">{error}</span>}
               </div>
             )}
+
+            {error && <span className="error-text">{error}</span>}
           </div>
         );
       })}
