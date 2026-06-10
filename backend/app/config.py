@@ -43,9 +43,27 @@ class Settings(BaseSettings):
     pool_window_hours: int = Field(default=12, ge=1, alias='POOL_WINDOW_HOURS')
     pool_min_buyers: int = Field(default=2, ge=1, alias='POOL_MIN_BUYERS')
     pool_geo_bucket_decimals: int = Field(default=2, alias='POOL_GEO_BUCKET_DECIMALS')
-    delivery_base_fee: float = Field(default=20.0, alias='DELIVERY_BASE_FEE')
-    delivery_per_km_fee: float = Field(default=8.0, alias='DELIVERY_PER_KM_FEE')
-    delivery_free_radius_km: float = Field(default=1.0, alias='DELIVERY_FREE_RADIUS_KM')
+    delivery_base_fee: float = Field(default=35.0, alias='DELIVERY_BASE_FEE')
+    delivery_min_fee: float = Field(default=45.0, alias='DELIVERY_MIN_FEE')
+    delivery_per_km_fee: float = Field(default=12.0, alias='DELIVERY_PER_KM_FEE')
+    delivery_free_radius_km: float = Field(default=0.0, alias='DELIVERY_FREE_RADIUS_KM')
+    delivery_weight_included_kg: float = Field(default=10.0, alias='DELIVERY_WEIGHT_INCLUDED_KG')
+    delivery_per_extra_kg_fee: float = Field(default=0.75, alias='DELIVERY_PER_EXTRA_KG_FEE')
+    delivery_max_fee: float = Field(default=500.0, alias='DELIVERY_MAX_FEE')
+    delivery_surge_multiplier: float = Field(default=1.0, alias='DELIVERY_SURGE_MULTIPLIER')
+
+    mandi_price_api_url: str = Field(
+        default='https://api.data.gov.in/resource/9ef84268-d588-465a-a308-a864a43d0070',
+        alias='MANDI_PRICE_API_URL',
+    )
+    mandi_price_api_key: str | None = Field(default=None, alias='MANDI_PRICE_API_KEY')
+    mandi_price_cache_ttl_minutes: int = Field(default=360, ge=1, alias='MANDI_PRICE_CACHE_TTL_MINUTES')
+    mandi_price_default_state: str = Field(default='Maharashtra', alias='MANDI_PRICE_DEFAULT_STATE')
+    mandi_price_default_market: str = Field(default='Pune', alias='MANDI_PRICE_DEFAULT_MARKET')
+    mandi_price_default_price_unit: str = Field(default='quintal', alias='MANDI_PRICE_DEFAULT_PRICE_UNIT')
+    dynamic_pricing_margin_percent: float = Field(default=8.0, alias='DYNAMIC_PRICING_MARGIN_PERCENT')
+    dynamic_pricing_premium_quality_uplift_percent: float = Field(default=7.0, alias='DYNAMIC_PRICING_PREMIUM_QUALITY_UPLIFT_PERCENT')
+    dynamic_pricing_economy_discount_percent: float = Field(default=5.0, alias='DYNAMIC_PRICING_ECONOMY_DISCOUNT_PERCENT')
 
     model_config = SettingsConfigDict(env_file='.env', env_file_encoding='utf-8', extra='ignore')
 

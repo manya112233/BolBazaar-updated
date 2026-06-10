@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { AppLanguage } from '../App';
+import { t } from '../i18n';
 import type {
   AuthSession,
   BuyerDemandSearchRequest,
@@ -52,11 +53,11 @@ export default function BuyerWorkspace(props: {
   }, [props.sectionId]);
 
   const tabs: { id: BuyerTab; label: string; badge?: number }[] = [
-    { id: 'browse', label: 'Browse Marketplace' },
-    { id: 'post_demand', label: 'Post Demand' },
+    { id: 'browse', label: t(props.language, 'buyerWorkspace.browseMarketplace') },
+    { id: 'post_demand', label: t(props.language, 'buyerWorkspace.postDemand') },
     {
       id: 'my_demands',
-      label: 'My Demand & Delivery',
+      label: t(props.language, 'buyerWorkspace.myDemandAndDelivery'),
       badge: (props.buyerDemands?.length || 0) + (props.buyerDeliveries?.length || 0),
     },
   ];
@@ -80,6 +81,7 @@ export default function BuyerWorkspace(props: {
 
       {buyerTab === 'post_demand' && props.onPostDemandRequest && (
         <DemandRequestForm
+          language={props.language}
           buyerId={props.session.phone_number}
           buyerName={props.session.store_name || `Buyer ${props.session.phone_number.slice(-4)}`}
           onSubmit={props.onPostDemandRequest}
@@ -88,6 +90,7 @@ export default function BuyerWorkspace(props: {
 
       {buyerTab === 'my_demands' && (
         <MyDemandsPanel
+          language={props.language}
           demands={props.buyerDemands || []}
           deliveries={props.buyerDeliveries || []}
           onConfirmDelivery={props.onConfirmDelivery}

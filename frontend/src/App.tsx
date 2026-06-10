@@ -23,6 +23,8 @@ import {
   advanceDeliveryForActor,
   confirmBuyerDelivery,
   fetchOpsDashboard,
+  markAllNotificationsRead,
+  markNotificationRead,
   updateListingQuality,
 } from './api';
 import AuthModal from './components/AuthModal';
@@ -32,6 +34,7 @@ import OrderModal from './components/OrderModal';
 import OpsWorkspace from './components/OpsWorkspace';
 import SellerWorkspace from './components/SellerWorkspace';
 import DashboardLayout, { type DashboardSection } from './components/dashboard/DashboardLayout';
+import { t } from './i18n';
 import type { AuthRole, AuthSession, CommitDemandPool, Delivery, DemandPoolOpportunity, DemandRequest, Insight, Listing, Notification, OpsDashboardResponse, Order, SellerDashboard, SellerLedgerView, SellerProfile } from './types';
 
 const BUYER_SESSION_STORAGE_KEY = 'bolbazaar_buyer_session_id';
@@ -93,6 +96,22 @@ function sessionSellerId(session: AuthSession | null): string | null {
   return session.seller_id || session.phone_number;
 }
 
+function sessionNotificationFilters(session: AuthSession | null): {
+  role?: 'buyer' | 'seller' | 'ops';
+  recipient_id?: string;
+} {
+  if (!session) {
+    return {};
+  }
+  if (session.role === 'seller') {
+    return { role: 'seller', recipient_id: session.seller_id || session.phone_number };
+  }
+  if (session.role === 'buyer') {
+    return { role: 'buyer', recipient_id: session.phone_number };
+  }
+  return { role: 'ops', recipient_id: 'ops-team' };
+}
+
 export default function App() {
   const [listings, setListings] = useState<Listing[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
@@ -117,6 +136,7 @@ export default function App() {
   const [sellerSection, setSellerSection] = useState('overview');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [notificationOpen, setNotificationOpen] = useState(false);
   const buyerSessionIdRef = useRef<string>(getOrCreateBuyerSessionId());
   const [buyerDemands, setBuyerDemands] = useState<DemandRequest[]>([]);
   const [buyerDeliveries, setBuyerDeliveries] = useState<Delivery[]>([]);
@@ -126,18 +146,21 @@ export default function App() {
   const [opsSection, setOpsSection] = useState('quality');
 
   const activeSellerId = sessionSellerId(session) || selectedSellerId;
+  const notificationFilters = sessionNotificationFilters(session);
 
   const loadAll = async (preferredSellerId?: string | null) => {
     setLoading(true);
     setError(null);
     try {
-      const currentRole = session?.role;
-      const buyerId = session?.role === 'buyer' ? session.phone_number : null;
+      const currentSession = session;
+      const currentRole = currentSession?.role;
+      const buyerId = currentSession?.role === 'buyer' ? currentSession.phone_number : null;
+      const nextNotificationFilters = sessionNotificationFilters(currentSession);
 
       const [nextListings, nextOrders, nextNotifications, nextSellers, nextDemandPools] = await Promise.all([
         fetchListings(),
         fetchOrders(),
-        fetchNotifications(),
+        fetchNotifications(nextNotificationFilters),
         fetchSellers(),
         fetchDemandPools(),
       ]);
@@ -163,7 +186,7 @@ export default function App() {
 
       const nextSellerId =
         preferredSellerId ||
-        sessionSellerId(session) ||
+        sessionSellerId(currentSession) ||
         selectedSellerId ||
         nextSellers[0]?.seller_id ||
         nextListings[0]?.seller_id ||
@@ -309,30 +332,30 @@ export default function App() {
   const currentSeller = activeSellerId ? sellers.find((seller) => seller.seller_id === activeSellerId) || null : null;
 
   const unreadNotifications = useMemo(
-    () => notifications.filter((note) => note.delivery_status !== 'failed').length,
+    () => notifications.filter((note) => !note.read_at).length,
     [notifications],
   );
 
   const buyerSections: DashboardSection[] = [
-    { id: 'marketplace', label: 'Marketplace', icon: 'marketplace' },
-    { id: 'orders', label: 'Orders', icon: 'orders', badge: orders.filter((order) => order.status === 'pending').length },
-    { id: 'sellers', label: 'Trusted Sellers', icon: 'sellers' },
-    { id: 'demand', label: 'Demand Signals', icon: 'demand' },
+    { id: 'marketplace', label: t(language, 'dashboard.marketplace'), icon: 'marketplace' },
+    { id: 'orders', label: t(language, 'dashboard.orders'), icon: 'orders', badge: orders.filter((order) => order.status === 'pending').length },
+    { id: 'sellers', label: t(language, 'dashboard.sellers'), icon: 'sellers' },
+    { id: 'demand', label: t(language, 'dashboard.demand'), icon: 'demand' },
   ];
 
   const sellerSections: DashboardSection[] = [
-    { id: 'overview', label: 'Overview', icon: 'overview' },
-    { id: 'listings', label: 'Live Listings', icon: 'listings' },
-    { id: 'orders', label: 'Orders', icon: 'orders', badge: filteredSellerOrders.filter((order) => order.status === 'pending').length },
-    { id: 'ledger', label: 'Khata Ledger', icon: 'ledger' },
-    { id: 'insights', label: 'AI Insights', icon: 'insights' },
-    { id: 'profile', label: 'Verification/Profile', icon: 'profile' },
+    { id: 'overview', label: t(language, 'dashboard.overview'), icon: 'overview' },
+    { id: 'listings', label: t(language, 'dashboard.listings'), icon: 'listings' },
+    { id: 'orders', label: t(language, 'dashboard.orders'), icon: 'orders', badge: filteredSellerOrders.filter((order) => order.status === 'pending').length },
+    { id: 'ledger', label: t(language, 'dashboard.ledger'), icon: 'ledger' },
+    { id: 'insights', label: t(language, 'dashboard.insights'), icon: 'insights' },
+    { id: 'profile', label: t(language, 'dashboard.profile'), icon: 'profile' },
   ];
 
   const opsSections: DashboardSection[] = [
-    { id: 'quality', label: 'Ops Verification', icon: 'listings', badge: opsDashboard?.pending_quality_checks.length },
-    { id: 'deliveries', label: 'Managed Delivery', icon: 'orders', badge: opsDashboard?.active_deliveries.length },
-    { id: 'metrics', label: 'Smart Supply Chain', icon: 'insights' },
+    { id: 'quality', label: t(language, 'dashboard.opsVerification'), icon: 'listings', badge: opsDashboard?.pending_quality_checks.length },
+    { id: 'deliveries', label: t(language, 'dashboard.managedDelivery'), icon: 'orders', badge: opsDashboard?.active_deliveries.length },
+    { id: 'metrics', label: t(language, 'dashboard.smartSupplyChain'), icon: 'insights' },
   ];
 
   const currentSections = session?.role === 'seller' ? sellerSections : session?.role === 'ops' ? opsSections : buyerSections;
@@ -424,7 +447,30 @@ export default function App() {
           language={language}
           onLanguageChange={setLanguage}
           unreadNotifications={unreadNotifications}
-          sessionLabel={session.role === 'seller' ? 'Seller session' : session.role === 'ops' ? 'Ops session' : 'Buyer session'}
+          notifications={notifications}
+          notificationOpen={notificationOpen}
+          onToggleNotifications={() => setNotificationOpen((value) => !value)}
+          onMarkNotificationRead={async (notificationId) => {
+            const readAt = new Date().toISOString();
+            setNotifications((items) => items.map((item) => (
+              item.id === notificationId ? { ...item, read_at: item.read_at || readAt } : item
+            )));
+            await markNotificationRead(notificationId);
+            await loadAll(activeSellerId);
+          }}
+          onMarkAllNotificationsRead={async () => {
+            const readAt = new Date().toISOString();
+            setNotifications((items) => items.map((item) => ({ ...item, read_at: item.read_at || readAt })));
+            if (!notificationFilters.role) {
+              return;
+            }
+            await markAllNotificationsRead({
+              role: notificationFilters.role,
+              recipient_id: notificationFilters.recipient_id,
+            });
+            await loadAll(activeSellerId);
+          }}
+          sessionLabel={session.role === 'seller' ? t(language, 'dashboard.sellerSession') : session.role === 'ops' ? t(language, 'dashboard.opsSession') : t(language, 'dashboard.buyerSession')}
           onLogout={() => setSession(null)}
         >
           {session.role === 'buyer' ? (
@@ -512,6 +558,7 @@ export default function App() {
           ) : (
             <OpsWorkspace
               sectionId={opsSection}
+              language={language}
               dashboard={opsDashboard}
               onUpdateQuality={async (listingId, payload) => {
                 await updateListingQuality(listingId, payload);
@@ -533,6 +580,7 @@ export default function App() {
       {selectedListing && session?.role === 'buyer' && (
         <OrderModal
           listing={selectedListing}
+          language={language}
           defaultBuyerName={`Buyer ${session.phone_number.slice(-4)}`}
           defaultBuyerPhone={session.phone_number}
           onClose={() => setSelectedListing(null)}

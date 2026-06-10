@@ -139,9 +139,9 @@ export default function SellerOverview({
   const timelineItems = useMemo(
     () =>
       notifications.slice().reverse().slice(0, 6).map((note) => ({
-        title: note.order_id,
+        title: note.title || note.order_id || 'Notification',
         body: note.text,
-        meta: note.seller_id,
+        meta: note.seller_id || note.category,
         tone: note.delivery_status === 'sent' ? 'success' as const : 'neutral' as const,
         badge: note.delivery_status,
       })),

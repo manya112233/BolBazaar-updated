@@ -30,6 +30,11 @@ export type Listing = {
   latitude?: number | null;
   longitude?: number | null;
   place_id?: string | null;
+  market_reference_price_per_kg?: number | null;
+  suggested_price_per_kg?: number | null;
+  price_intelligence_note?: string | null;
+  price_intelligence_source?: string | null;
+  price_intelligence_updated_at?: string | null;
   source_channel: 'whatsapp' | 'demo' | 'api';
   raw_message?: string | null;
   status: 'live' | 'paused' | 'sold_out';
@@ -72,22 +77,47 @@ export type Order = {
   seller_name: string;
   product_name: string;
   buyer_name: string;
+  buyer_phone?: string | null;
   buyer_type: 'kirana' | 'restaurant' | 'canteen' | 'retailer';
   quantity_kg: number;
   pickup_time: string;
   unit_price: number;
   total_price: number;
+  produce_subtotal: number;
   status: 'pending' | 'accepted' | 'rejected' | 'completed';
+  delivery_mode?: DeliveryMode;
+  delivery_address?: string | null;
+  delivery_distance_km?: number | null;
+  delivery_fee: number;
+  buyer_total_payable: number;
+  delivery_fee_breakdown?: DeliveryFeeBreakdown | null;
+  fulfillment_status?: FulfillmentDeliveryStatus;
   created_at: string;
 };
 
+export type NotificationRecipientRole = 'buyer' | 'seller' | 'ops' | 'all';
+export type NotificationCategory = 'order' | 'delivery' | 'demand' | 'quality' | 'pricing' | 'ledger' | 'system';
+
 export type Notification = {
-  seller_id: string;
-  order_id: string;
+  id: string;
+  recipient_role: NotificationRecipientRole;
+  recipient_id?: string | null;
+  seller_id?: string | null;
+  order_id?: string | null;
+  category: NotificationCategory;
+  title: string;
   text: string;
+  body?: string | null;
+  entity_type?: string | null;
+  entity_id?: string | null;
+  action_label?: string | null;
+  action_target?: string | null;
+  action_url?: string | null;
   audio_base64?: string | null;
   channel: string;
   delivery_status: string;
+  read_at?: string | null;
+  created_at: string;
 };
 
 export type Insight = {
@@ -212,6 +242,7 @@ export type DemandPoolOpportunity = {
   created_from_event_ids: string[];
   suggested_action: string;
   urgency_label: string;
+  market_price_reference?: MarketPriceReference | null;
 };
 
 export type DemandPoolResponse = {
@@ -297,6 +328,7 @@ export type CommitDemandPool = {
   centroid_lat?: number | null;
   centroid_lng?: number | null;
   members: PoolMember[];
+  market_price_reference?: MarketPriceReference | null;
   status: DemandPoolStatus;
   committed_seller_id?: string | null;
   committed_seller_name?: string | null;
@@ -335,6 +367,58 @@ export type Delivery = {
   eta?: string | null;
   created_at: string;
   updated_at: string;
+};
+
+export type DeliveryFeeBreakdown = {
+  distance_km?: number | null;
+  distance_source: 'google_maps' | 'haversine' | 'unavailable';
+  base_fee: number;
+  distance_fee: number;
+  weight_fee: number;
+  surge_fee: number;
+  total_delivery_fee: number;
+  currency: 'INR';
+  fee_label: string;
+  pricing_notes: string[];
+};
+
+export type DeliveryEstimate = {
+  listing_id: string;
+  seller_id: string;
+  seller_pickup_location: string;
+  delivery_address: string;
+  quantity_kg: number;
+  distance_km?: number | null;
+  distance_source: 'google_maps' | 'haversine' | 'unavailable';
+  base_fee: number;
+  distance_fee: number;
+  weight_fee: number;
+  surge_fee: number;
+  total_delivery_fee: number;
+  currency: 'INR';
+  fee_label: string;
+  pricing_notes: string[];
+};
+
+export type MarketPriceReference = {
+  product_name: string;
+  normalized_commodity: string;
+  state?: string | null;
+  district?: string | null;
+  market?: string | null;
+  mandi_min_price_per_kg?: number | null;
+  mandi_max_price_per_kg?: number | null;
+  mandi_modal_price_per_kg?: number | null;
+  mandi_modal_price_raw?: number | null;
+  raw_unit: string;
+  arrival_date?: string | null;
+  data_source: string;
+  confidence: number;
+  suggested_price_per_kg?: number | null;
+  suggested_min_price_per_kg?: number | null;
+  suggested_max_price_per_kg?: number | null;
+  explanation: string;
+  fetched_at: string;
 };
 
 export type OpsMetricSnapshot = {

@@ -1,13 +1,15 @@
 import { useState } from 'react';
+import { t, type Language } from '../i18n';
 import type { DemandRequestCreate } from '../types';
 
 type DemandRequestFormProps = {
   buyerId: string;
   buyerName: string;
+  language: Language;
   onSubmit: (payload: DemandRequestCreate) => Promise<void>;
 };
 
-export default function DemandRequestForm({ buyerId, buyerName, onSubmit }: DemandRequestFormProps) {
+export default function DemandRequestForm({ buyerId, buyerName, language, onSubmit }: DemandRequestFormProps) {
   const [productQuery, setProductQuery] = useState('');
   const [quantityKg, setQuantityKg] = useState(10);
   const [maxPrice, setMaxPrice] = useState<number | ''>('');
@@ -45,7 +47,7 @@ export default function DemandRequestForm({ buyerId, buyerName, onSubmit }: Dema
       setDeliveryAddress('');
       setNeededBy('Today evening');
       setPhone('');
-      setTimeout(() => setSuccess(false), 4000);
+      window.setTimeout(() => setSuccess(false), 4000);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to submit demand');
     } finally {
@@ -55,91 +57,53 @@ export default function DemandRequestForm({ buyerId, buyerName, onSubmit }: Dema
 
   return (
     <div className="demand-form-card card slide-in">
-      <h3>📋 Post Your Demand</h3>
-      <p className="form-subtitle">Tell sellers what you need — we'll find the best matches and pool similar orders for better prices.</p>
+      <h3>{language === 'hi' ? 'मांग पोस्ट करें' : 'Post Your Demand'}</h3>
+      <p className="form-subtitle">
+        {language === 'hi'
+          ? 'बताइए आपको क्या चाहिए। हम सही sellers ढूंढेंगे और मिलती-जुलती मांग को pool करेंगे।'
+          : "Tell sellers what you need. We'll find strong matches and pool similar orders."}
+      </p>
 
       <div className="demand-form-grid">
         <div className="full-span">
-          <label className="label">What do you need?</label>
-          <input
-            value={productQuery}
-            onChange={(e) => setProductQuery(e.target.value)}
-            placeholder="e.g. Fresh tomatoes, Basmati rice, Green chillies..."
-          />
+          <label className="label">{language === 'hi' ? 'क्या चाहिए?' : 'What do you need?'}</label>
+          <input value={productQuery} onChange={(event) => setProductQuery(event.target.value)} placeholder="Tomato, potato, onion..." />
         </div>
-
         <div>
-          <label className="label">Quantity (kg)</label>
-          <input
-            type="number"
-            min={1}
-            value={quantityKg}
-            onChange={(e) => setQuantityKg(Number(e.target.value) || 0)}
-          />
+          <label className="label">{language === 'hi' ? 'मात्रा (किलो)' : 'Quantity (kg)'}</label>
+          <input type="number" min={1} value={quantityKg} onChange={(event) => setQuantityKg(Number(event.target.value) || 0)} />
         </div>
-
         <div>
-          <label className="label">Max price per kg (₹) — optional</label>
-          <input
-            type="number"
-            min={1}
-            value={maxPrice}
-            onChange={(e) => setMaxPrice(e.target.value === '' ? '' : Number(e.target.value))}
-            placeholder="Any price"
-          />
+          <label className="label">{language === 'hi' ? 'अधिकतम रेट (वैकल्पिक)' : 'Max price per kg (optional)'}</label>
+          <input type="number" min={1} value={maxPrice} onChange={(event) => setMaxPrice(event.target.value === '' ? '' : Number(event.target.value))} />
         </div>
-
         <div>
-          <label className="label">Delivery mode</label>
-          <select value={deliveryMode} onChange={(e) => setDeliveryMode(e.target.value as 'pickup' | 'delivery')}>
-            <option value="delivery">🚚 Delivery to my address</option>
-            <option value="pickup">📦 I'll pick up</option>
+          <label className="label">{t(language, 'orderModal.deliveryMode')}</label>
+          <select value={deliveryMode} onChange={(event) => setDeliveryMode(event.target.value as 'pickup' | 'delivery')}>
+            <option value="delivery">{t(language, 'orderModal.delivery')}</option>
+            <option value="pickup">{t(language, 'orderModal.pickup')}</option>
           </select>
         </div>
-
         <div>
-          <label className="label">Needed by</label>
-          <input
-            value={neededBy}
-            onChange={(e) => setNeededBy(e.target.value)}
-            placeholder="e.g. Today 5 PM, Tomorrow morning"
-          />
+          <label className="label">{language === 'hi' ? 'कब तक चाहिए' : 'Needed by'}</label>
+          <input value={neededBy} onChange={(event) => setNeededBy(event.target.value)} />
         </div>
-
         <div className="full-span">
-          <label className="label">{deliveryMode === 'delivery' ? 'Delivery address' : 'Your location (for matching)'}</label>
-          <input
-            value={deliveryAddress}
-            onChange={(e) => setDeliveryAddress(e.target.value)}
-            placeholder="e.g. Laxmi Nagar, Delhi"
-          />
+          <label className="label">{deliveryMode === 'delivery' ? t(language, 'orderModal.deliveryAddress') : (language === 'hi' ? 'लोकेशन' : 'Location')}</label>
+          <input value={deliveryAddress} onChange={(event) => setDeliveryAddress(event.target.value)} placeholder="e.g. Laxmi Nagar, Delhi" />
         </div>
-
         <div>
-          <label className="label">Phone (optional)</label>
-          <input
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-            placeholder="+91 ..."
-          />
+          <label className="label">{t(language, 'orderModal.phone')}</label>
+          <input value={phone} onChange={(event) => setPhone(event.target.value)} placeholder="+91 ..." />
         </div>
       </div>
 
-      {error && <p className="error-text" style={{ marginTop: 12 }}>{error}</p>}
-
-      {success && (
-        <div className="demand-form-success">
-          ✅ Demand posted! We're matching you with nearby sellers.
-        </div>
-      )}
+      {error ? <p className="error-text" style={{ marginTop: 12 }}>{error}</p> : null}
+      {success ? <div className="demand-form-success">{language === 'hi' ? 'मांग पोस्ट हो गई।' : 'Demand posted.'}</div> : null}
 
       <div className="demand-form-actions">
-        <button
-          className="primary-button"
-          disabled={!canSubmit || submitting}
-          onClick={handleSubmit}
-        >
-          {submitting ? 'Posting...' : '📣 Post Demand'}
+        <button className="primary-button" disabled={!canSubmit || submitting} onClick={handleSubmit}>
+          {submitting ? t(language, 'orderModal.placing') : (language === 'hi' ? 'मांग पोस्ट करें' : 'Post Demand')}
         </button>
       </div>
     </div>

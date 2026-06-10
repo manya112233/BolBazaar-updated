@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from app.services.google_clients import GoogleClients
-from app.schemas import BuyerDemandEvent, LedgerEntry, Listing, Order, OtpRequestRecord, SellerInsight, SellerProfile, SellerSession, DemandRequest, CommitDemandPool, Delivery
+from app.schemas import BuyerDemandEvent, CommitDemandPool, Delivery, DemandRequest, LedgerEntry, Listing, NotificationRecord, Order, OtpRequestRecord, SellerInsight, SellerProfile, SellerSession
 
 try:
     from google.api_core.exceptions import AlreadyExists
@@ -102,14 +102,58 @@ class FirestoreStore:
         ref = self.meta_collection.document('notifications')
         doc = ref.get()
         items = [] if not doc.exists else doc.to_dict().get('items', [])
-        items.append(payload)
+        notification = NotificationRecord.model_validate(payload)
+        items = [item for item in items if item.get('id') != notification.id]
+        items.append(notification.model_dump(mode='json'))
         ref.set({'items': items})
 
-    def list_notifications(self) -> list[dict[str, Any]]:
+    def list_notifications(self, role: str | None = None, recipient_id: str | None = None, unread_only: bool = False) -> list[dict[str, Any]]:
         doc = self.meta_collection.document('notifications').get()
         if not doc.exists:
             return []
-        return doc.to_dict().get('items', [])
+        items = [NotificationRecord.model_validate(item) for item in doc.to_dict().get('items', [])]
+        if role:
+            items = [item for item in items if item.recipient_role in {role, 'all'}]
+        if recipient_id:
+            items = [item for item in items if item.recipient_id in {recipient_id, None}]
+        if unread_only:
+            items = [item for item in items if item.read_at is None]
+        return [item.model_dump(mode='json') for item in sorted(items, key=lambda item: item.created_at, reverse=True)]
+
+    def mark_notification_read(self, notification_id: str) -> dict[str, Any] | None:
+        ref = self.meta_collection.document('notifications')
+        doc = ref.get()
+        if not doc.exists:
+            return None
+        items = [NotificationRecord.model_validate(item) for item in doc.to_dict().get('items', [])]
+        updated = None
+        for item in items:
+            if item.id == notification_id:
+                item.read_at = item.read_at or datetime.utcnow()
+                updated = item
+                break
+        if updated is None:
+            return None
+        ref.set({'items': [item.model_dump(mode='json') for item in items]})
+        return updated.model_dump(mode='json')
+
+    def mark_all_notifications_read(self, role: str, recipient_id: str | None = None) -> int:
+        ref = self.meta_collection.document('notifications')
+        doc = ref.get()
+        if not doc.exists:
+            return 0
+        items = [NotificationRecord.model_validate(item) for item in doc.to_dict().get('items', [])]
+        count = 0
+        for item in items:
+            if item.recipient_role not in {role, 'all'}:
+                continue
+            if recipient_id is not None and item.recipient_id not in {recipient_id, None}:
+                continue
+            if item.read_at is None:
+                item.read_at = datetime.utcnow()
+                count += 1
+        ref.set({'items': [item.model_dump(mode='json') for item in items]})
+        return count
 
     def list_buyer_search_events(
         self,

@@ -1,4 +1,4 @@
-import type { AuthRole, BuyerDemandSearchRequest, BuyerDemandSearchResponse, CommitDemandPool, Delivery, DemandPoolOpportunity, DemandPoolResponse, DemandRequest, DemandRequestCreate, FulfillmentDeliveryStatus, Insight, Listing, ListingQualityGrade, ListingQualityStatus, Notification, OpsDashboardResponse, OpsMetricSnapshot, Order, OtpRequestResponse, OtpVerifyResponse, SellerDashboard, SellerLedgerView, SellerProfile } from './types';
+import type { AuthRole, BuyerDemandSearchRequest, BuyerDemandSearchResponse, CommitDemandPool, Delivery, DeliveryEstimate, DemandPoolOpportunity, DemandPoolResponse, DemandRequest, DemandRequestCreate, FulfillmentDeliveryStatus, Insight, Listing, ListingQualityGrade, ListingQualityStatus, Notification, NotificationRecipientRole, OpsDashboardResponse, OpsMetricSnapshot, Order, OtpRequestResponse, OtpVerifyResponse, SellerDashboard, SellerLedgerView, SellerProfile } from './types';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 
@@ -87,6 +87,17 @@ export async function placeOrder(payload: {
   return data.order;
 }
 
+export async function estimateDelivery(payload: {
+  listing_id: string;
+  quantity_kg: number;
+  delivery_address: string;
+}): Promise<DeliveryEstimate> {
+  return request<DeliveryEstimate>('/api/delivery/estimate', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
 export async function respondToOrder(orderId: string, decision: 'accept' | 'reject'): Promise<Order> {
   const data = await request<{ ok: boolean; order: Order }>(`/api/orders/${orderId}/respond`, {
     method: 'POST',
@@ -95,9 +106,36 @@ export async function respondToOrder(orderId: string, decision: 'accept' | 'reje
   return data.order;
 }
 
-export async function fetchNotifications(): Promise<Notification[]> {
-  const data = await request<{ items: Notification[] }>('/api/notifications');
+export async function fetchNotifications(filters?: {
+  role?: NotificationRecipientRole;
+  recipient_id?: string;
+  unread_only?: boolean;
+}): Promise<Notification[]> {
+  const params = new URLSearchParams();
+  if (filters?.role) params.set('role', filters.role);
+  if (filters?.recipient_id) params.set('recipient_id', filters.recipient_id);
+  if (filters?.unread_only) params.set('unread_only', 'true');
+  const query = params.toString();
+  const data = await request<{ items: Notification[] }>(`/api/notifications${query ? `?${query}` : ''}`);
   return data.items;
+}
+
+export async function markNotificationRead(notificationId: string): Promise<Notification> {
+  const data = await request<{ ok: boolean; notification: Notification }>(`/api/notifications/${notificationId}/read`, {
+    method: 'POST',
+  });
+  return data.notification;
+}
+
+export async function markAllNotificationsRead(payload: {
+  role: NotificationRecipientRole;
+  recipient_id?: string;
+}): Promise<number> {
+  const data = await request<{ ok: boolean; count: number }>('/api/notifications/read-all', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+  return data.count;
 }
 
 export async function fetchOrders(): Promise<Order[]> {

@@ -91,7 +91,7 @@ from pathlib import Path
 from threading import RLock
 from typing import Any
 
-from app.schemas import BuyerDemandEvent, LedgerEntry, Listing, Order, OtpRequestRecord, SellerInsight, SellerProfile, SellerSession, DemandRequest, CommitDemandPool, Delivery
+from app.schemas import BuyerDemandEvent, CommitDemandPool, Delivery, DemandRequest, LedgerEntry, Listing, NotificationRecord, Order, OtpRequestRecord, SellerInsight, SellerProfile, SellerSession
 
 
 class JsonStore:
@@ -202,11 +202,123 @@ class JsonStore:
     def add_notification(self, payload: dict[str, Any]) -> None:
         with self._lock:
             data = self._read()
-            data["notifications"].append(payload)
+            notification = self._coerce_notification_record(payload)
+            items = [
+                item for item in data["notifications"]
+                if item.get("id") != notification.id
+            ]
+            items.append(json.loads(notification.model_dump_json()))
+            data["notifications"] = items
             self._write(data)
 
-    def list_notifications(self) -> list[dict[str, Any]]:
-        return self._read()["notifications"]
+    def _coerce_notification_record(self, payload: dict[str, Any]) -> NotificationRecord:
+        try:
+            return NotificationRecord.model_validate(payload)
+        except Exception:
+            text = str(payload.get("text") or payload.get("body") or "")
+            order_id = payload.get("order_id")
+            seller_id = payload.get("seller_id")
+            recipient_id = payload.get("recipient_id") or seller_id
+            recipient_role = payload.get("recipient_role") or ("seller" if seller_id else "all")
+
+            lower_text = text.lower()
+            title = payload.get("title")
+            category = payload.get("category")
+            entity_type = payload.get("entity_type")
+
+            if not title:
+                if order_id == "listing_confirmation" or "listing is live" in lower_text or "लिस्टिंग लाइव" in text:
+                    title = "Listing created"
+                    category = category or "system"
+                    entity_type = entity_type or "listing"
+                elif "new order" in lower_text or "ऑर्डर" in text:
+                    title = "New order"
+                    category = category or "order"
+                    entity_type = entity_type or "order"
+                elif "demand pooled" in lower_text or "pool" in lower_text:
+                    title = "Demand pool update"
+                    category = category or "demand"
+                    entity_type = entity_type or "pool"
+                else:
+                    title = "Notification"
+                    category = category or "system"
+
+            normalized = {
+                "id": payload.get("id") or f"ntf_legacy_{abs(hash(json.dumps(payload, sort_keys=True, default=str))) % 10_000_000_000}",
+                "recipient_role": recipient_role,
+                "recipient_id": recipient_id,
+                "seller_id": seller_id,
+                "order_id": order_id,
+                "category": category or "system",
+                "title": title,
+                "text": text or title,
+                "body": payload.get("body") or text or title,
+                "entity_type": entity_type,
+                "entity_id": payload.get("entity_id") or order_id,
+                "action_label": payload.get("action_label"),
+                "action_target": payload.get("action_target"),
+                "action_url": payload.get("action_url"),
+                "audio_base64": payload.get("audio_base64"),
+                "channel": payload.get("channel") or "web",
+                "delivery_status": payload.get("delivery_status") or "simulated",
+                "read_at": payload.get("read_at"),
+                "created_at": payload.get("created_at") or datetime.utcnow().isoformat(),
+            }
+            return NotificationRecord.model_validate(normalized)
+
+    def list_notifications(
+        self,
+        role: str | None = None,
+        recipient_id: str | None = None,
+        unread_only: bool = False,
+    ) -> list[dict[str, Any]]:
+        data = self._read()
+        items = [self._coerce_notification_record(item) for item in data["notifications"]]
+        if any("title" not in item or "id" not in item or "recipient_role" not in item for item in data["notifications"]):
+            with self._lock:
+                latest = self._read()
+                latest["notifications"] = [item.model_dump(mode='json') for item in items]
+                self._write(latest)
+        if role:
+            items = [item for item in items if item.recipient_role in {role, 'all'}]
+        if recipient_id:
+            items = [item for item in items if item.recipient_id in {recipient_id, None}]
+        if unread_only:
+            items = [item for item in items if item.read_at is None]
+        return [item.model_dump(mode='json') for item in sorted(items, key=lambda item: item.created_at, reverse=True)]
+
+    def mark_notification_read(self, notification_id: str) -> dict[str, Any] | None:
+        with self._lock:
+            data = self._read()
+            items = [self._coerce_notification_record(item) for item in data["notifications"]]
+            updated: NotificationRecord | None = None
+            for item in items:
+                if item.id == notification_id:
+                    item.read_at = item.read_at or datetime.utcnow()
+                    updated = item
+                    break
+            if updated is None:
+                return None
+            data["notifications"] = [item.model_dump(mode='json') for item in items]
+            self._write(data)
+            return updated.model_dump(mode='json')
+
+    def mark_all_notifications_read(self, role: str, recipient_id: str | None = None) -> int:
+        with self._lock:
+            data = self._read()
+            items = [self._coerce_notification_record(item) for item in data["notifications"]]
+            count = 0
+            for item in items:
+                if item.recipient_role not in {role, 'all'}:
+                    continue
+                if recipient_id is not None and item.recipient_id not in {recipient_id, None}:
+                    continue
+                if item.read_at is None:
+                    item.read_at = datetime.utcnow()
+                    count += 1
+            data["notifications"] = [item.model_dump(mode='json') for item in items]
+            self._write(data)
+            return count
 
     def list_buyer_search_events(
         self,

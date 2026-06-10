@@ -1072,9 +1072,9 @@ textarea:focus-visible {
 /* delivery progress stepper */
 .delivery-stepper {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 0;
-  padding: 8px 0;
+  padding: 10px 0 4px;
 }
 
 .delivery-step {
@@ -1083,6 +1083,7 @@ textarea:focus-visible {
   align-items: center;
   flex: 1;
   position: relative;
+  min-width: 0;
 }
 
 .delivery-step-dot {
@@ -1119,7 +1120,7 @@ textarea:focus-visible {
   font-weight: 600;
   margin-top: 6px;
   text-align: center;
-  white-space: nowrap;
+  line-height: 1.2;
 }
 
 .delivery-step-done .delivery-step-label,
@@ -1128,10 +1129,13 @@ textarea:focus-visible {
 }
 
 .delivery-step-line {
-  flex: 1;
+  position: absolute;
+  top: 13px;
+  left: calc(50% + 18px);
+  width: calc(100% - 36px);
   height: 2px;
   background: var(--border);
-  margin-bottom: 20px;
+  z-index: 0;
 }
 
 .delivery-step-line-done {

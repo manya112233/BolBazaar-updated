@@ -2,15 +2,18 @@ import DeliveryBoard from './DeliveryBoard';
 import DataTable from './dashboard/DataTable';
 import KpiCard from './dashboard/KpiCard';
 import StatusBadge from './dashboard/StatusBadge';
+import type { Language } from '../i18n';
 import type { FulfillmentDeliveryStatus, Listing, ListingQualityGrade, ListingQualityStatus, OpsDashboardResponse } from '../types';
 
 export default function OpsWorkspace({
   sectionId,
+  language,
   dashboard,
   onUpdateQuality,
   onAdvanceDelivery,
 }: {
   sectionId: string;
+  language: Language;
   dashboard: OpsDashboardResponse | null;
   onUpdateQuality: (listingId: string, payload: {
     status: ListingQualityStatus;
@@ -99,6 +102,7 @@ export default function OpsWorkspace({
           deliveries={dashboard.active_deliveries}
           onAdvance={onAdvanceDelivery}
           role="ops"
+          language={language}
         />
       )}
 

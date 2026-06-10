@@ -1,5 +1,7 @@
-import { useMemo, useState } from 'react';
-import type { Listing } from '../types';
+import { useEffect, useMemo, useState } from 'react';
+import { estimateDelivery } from '../api';
+import { t, type Language } from '../i18n';
+import type { DeliveryEstimate, Listing } from '../types';
 
 function formatGrade(grade: string): string {
   if (!grade) return 'Standard';
@@ -8,12 +10,14 @@ function formatGrade(grade: string): string {
 
 export default function OrderModal({
   listing,
+  language,
   defaultBuyerName,
   defaultBuyerPhone,
   onClose,
   onSubmit,
 }: {
   listing: Listing;
+  language: Language;
   defaultBuyerName?: string;
   defaultBuyerPhone?: string;
   onClose: () => void;
@@ -34,26 +38,57 @@ export default function OrderModal({
   const [phone, setPhone] = useState(defaultBuyerPhone || '');
   const [deliveryMode, setDeliveryMode] = useState<'pickup' | 'delivery'>('pickup');
   const [deliveryAddress, setDeliveryAddress] = useState('');
+  const [deliveryEstimate, setDeliveryEstimate] = useState<DeliveryEstimate | null>(null);
+  const [estimateLoading, setEstimateLoading] = useState(false);
+  const [estimateFailed, setEstimateFailed] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  const total = useMemo(() => (quantity * listing.price_per_kg).toFixed(2), [quantity, listing.price_per_kg]);
+  useEffect(() => {
+    if (deliveryMode !== 'delivery' || !deliveryAddress.trim() || quantity <= 0) {
+      setDeliveryEstimate(null);
+      setEstimateFailed(false);
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setEstimateLoading(true);
+      setEstimateFailed(false);
+      void estimateDelivery({
+        listing_id: listing.id,
+        quantity_kg: quantity,
+        delivery_address: deliveryAddress.trim(),
+      })
+        .then((value) => setDeliveryEstimate(value))
+        .catch(() => {
+          setDeliveryEstimate(null);
+          setEstimateFailed(true);
+        })
+        .finally(() => setEstimateLoading(false));
+    }, 500);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [deliveryAddress, deliveryMode, listing.id, quantity]);
+
+  const subtotal = useMemo(() => quantity * listing.price_per_kg, [quantity, listing.price_per_kg]);
+  const deliveryFee = deliveryMode === 'delivery' ? deliveryEstimate?.total_delivery_fee || 0 : 0;
+  const total = useMemo(() => (subtotal + deliveryFee).toFixed(2), [deliveryFee, subtotal]);
 
   return (
     <div className="modal-backdrop">
       <div className="modal card">
         <div className="modal-header">
-          <h3>Order {listing.product_name}</h3>
-          <button className="ghost-button" onClick={onClose}>Close</button>
+          <h3>{t(language, 'orderModal.title', { product: listing.product_name })}</h3>
+          <button className="ghost-button" onClick={onClose}>{t(language, 'common.close')}</button>
         </div>
 
         <div className="form-grid">
           <div>
-            <label className="label">Buyer name</label>
-            <input value={buyerName} onChange={(e) => setBuyerName(e.target.value)} />
+            <label className="label">{t(language, 'orderModal.buyerName')}</label>
+            <input value={buyerName} onChange={(event) => setBuyerName(event.target.value)} />
           </div>
           <div>
-            <label className="label">Buyer type</label>
-            <select value={buyerType} onChange={(e) => setBuyerType(e.target.value as typeof buyerType)}>
+            <label className="label">{t(language, 'orderModal.buyerType')}</label>
+            <select value={buyerType} onChange={(event) => setBuyerType(event.target.value as typeof buyerType)}>
               <option value="restaurant">Restaurant</option>
               <option value="kirana">Kirana</option>
               <option value="canteen">Canteen</option>
@@ -61,50 +96,57 @@ export default function OrderModal({
             </select>
           </div>
           <div>
-            <label className="label">Quantity (kg)</label>
-            <input type="number" max={listing.available_kg} value={quantity} onChange={(e) => setQuantity(Number(e.target.value || 0))} />
+            <label className="label">{t(language, 'orderModal.quantity')}</label>
+            <input type="number" max={listing.available_kg} value={quantity} onChange={(event) => setQuantity(Number(event.target.value || 0))} />
           </div>
           <div>
-            <label className="label">Pickup time</label>
-            <input value={pickupTime} onChange={(e) => setPickupTime(e.target.value)} />
+            <label className="label">{t(language, 'orderModal.pickupTime')}</label>
+            <input value={pickupTime} onChange={(event) => setPickupTime(event.target.value)} />
           </div>
           <div>
-            <label className="label">Phone</label>
-            <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Optional" />
+            <label className="label">{t(language, 'orderModal.phone')}</label>
+            <input value={phone} onChange={(event) => setPhone(event.target.value)} placeholder="Optional" />
           </div>
           <div>
-            <label className="label">Delivery mode</label>
-            <select value={deliveryMode} onChange={(e) => setDeliveryMode(e.target.value as typeof deliveryMode)}>
-              <option value="pickup">📦 Pickup</option>
-              <option value="delivery">🚚 Delivery</option>
+            <label className="label">{t(language, 'orderModal.deliveryMode')}</label>
+            <select value={deliveryMode} onChange={(event) => setDeliveryMode(event.target.value as typeof deliveryMode)}>
+              <option value="pickup">{t(language, 'orderModal.pickup')}</option>
+              <option value="delivery">{t(language, 'orderModal.delivery')}</option>
             </select>
           </div>
-          {deliveryMode === 'delivery' && (
+          {deliveryMode === 'delivery' ? (
             <div style={{ gridColumn: 'span 2' }}>
-              <label className="label">Delivery address</label>
-              <input value={deliveryAddress} onChange={(e) => setDeliveryAddress(e.target.value)} placeholder="e.g. Laxmi Nagar, Delhi" />
+              <label className="label">{t(language, 'orderModal.deliveryAddress')}</label>
+              <input value={deliveryAddress} onChange={(event) => setDeliveryAddress(event.target.value)} placeholder="e.g. Laxmi Nagar, Delhi" />
             </div>
-          )}
+          ) : null}
         </div>
 
         <div className="summary-box">
-          <div>Unit price: Rs {listing.price_per_kg}/kg</div>
-          <div>Total: Rs {total}</div>
+          <div>{t(language, 'orderModal.unitPrice')}: Rs {listing.price_per_kg}/kg</div>
+          <div>{t(language, 'orderModal.subtotal')}: Rs {subtotal.toFixed(2)}</div>
+          {deliveryMode === 'delivery' ? <div>{t(language, 'orderModal.deliveryFee')}: Rs {deliveryFee.toFixed(2)}</div> : null}
+          <div>{t(language, 'orderModal.totalEstimate')}: Rs {total}</div>
+          {estimateLoading ? <div>{t(language, 'orderModal.estimating')}</div> : null}
+          {deliveryEstimate?.distance_km != null ? <div>{t(language, 'common.estimated')}: {deliveryEstimate.distance_km} km</div> : null}
+          {deliveryMode === 'delivery' && !estimateLoading && (estimateFailed || (!deliveryEstimate && deliveryAddress.trim())) ? (
+            <div>{t(language, 'orderModal.deliveryPending')}</div>
+          ) : null}
         </div>
 
-        {(listing.quality_summary || listing.quality_score != null) && (
+        {(listing.quality_summary || listing.quality_score != null) ? (
           <div className="summary-box quality-box">
             <div>
-              Quality grade: {formatGrade(listing.quality_grade)}
+              {t(language, 'orderModal.qualityGrade')}: {formatGrade(listing.quality_grade)}
               {listing.quality_score != null ? ` (${listing.quality_score}/100)` : ''}
             </div>
-            {listing.quality_summary && <div>{listing.quality_summary}</div>}
-            {listing.quality_assessment_source === 'ai_visual' && <div>Verified from the seller's produce photo.</div>}
+            {listing.quality_summary ? <div>{listing.quality_summary}</div> : null}
+            {listing.quality_assessment_source === 'ai_visual' ? <div>{t(language, 'orderModal.verifiedFromPhoto')}</div> : null}
           </div>
-        )}
+        ) : null}
 
         <div className="action-row">
-          <button className="ghost-button" onClick={onClose}>Cancel</button>
+          <button className="ghost-button" onClick={onClose}>{t(language, 'common.cancel')}</button>
           <button
             className="primary-button"
             disabled={submitting || quantity <= 0 || quantity > listing.available_kg || (deliveryMode === 'delivery' && !deliveryAddress.trim())}
@@ -125,7 +167,7 @@ export default function OrderModal({
               }
             }}
           >
-            {submitting ? 'Placing...' : 'Confirm order'}
+            {submitting ? t(language, 'orderModal.placing') : t(language, 'orderModal.confirm')}
           </button>
         </div>
       </div>

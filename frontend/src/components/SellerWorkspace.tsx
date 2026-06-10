@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { AppLanguage } from '../App';
+import { t } from '../i18n';
 import type {
   AuthSession,
   CommitDemandPool,
@@ -47,9 +48,9 @@ export default function SellerWorkspace(props: {
   }, [props.sectionId]);
 
   const tabs: { id: SellerTab; label: string; badge?: number }[] = [
-    { id: 'dashboard', label: 'Seller Dashboard' },
-    { id: 'demand_pools', label: 'Demand Pools', badge: props.commitPools?.filter((pool) => pool.status === 'open' || pool.status === 'forming').length },
-    { id: 'deliveries', label: 'Managed Delivery', badge: props.deliveries?.filter((delivery) => delivery.status !== 'delivered' && delivery.status !== 'cancelled').length },
+    { id: 'dashboard', label: t(props.language, 'sellerWorkspace.dashboard') },
+    { id: 'demand_pools', label: t(props.language, 'sellerWorkspace.demandPools'), badge: props.commitPools?.filter((pool) => pool.status === 'open' || pool.status === 'forming').length },
+    { id: 'deliveries', label: t(props.language, 'sellerWorkspace.managedDelivery'), badge: props.deliveries?.filter((delivery) => delivery.status !== 'delivered' && delivery.status !== 'cancelled').length },
   ];
 
   return (
@@ -74,6 +75,7 @@ export default function SellerWorkspace(props: {
           pools={props.commitPools || []}
           listings={props.listings || []}
           sellerId={props.session.phone_number}
+          language={props.language}
           onCommit={props.onCommitPool}
         />
       )}
@@ -83,6 +85,7 @@ export default function SellerWorkspace(props: {
           deliveries={props.deliveries || []}
           onAdvance={props.onAdvanceDelivery}
           role="seller"
+          language={props.language}
         />
       )}
     </div>

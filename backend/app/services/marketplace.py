@@ -7,10 +7,10 @@ import hashlib
 import httpx
 
 from app.config import get_settings
-from app.schemas import BuyerDemandEvent, BuyerDemandSearchIn, BuyerDemandSearchResponse, BuyerDeliveryConfirmIn, DemandPoolOpportunity, DeliveryAdvanceRequestIn, LedgerCaptureMode, LedgerEntry, LedgerPaymentCreate, LedgerSummary, Listing, ListingCreate, ListingQualityUpdateIn, OpsDashboardResponse, OpsMetricSnapshot, Order, OrderCreate, ProduceQualityAssessment, SellerLedgerView, SellerNotification, SourceChannel
-from app.schemas import SellerDashboard, SellerProfile, CommitDemandPool, Delivery, DemandRequest, DemandRequestCreate, PoolCommitIn, PoolMember
+from app.schemas import BuyerDemandEvent, BuyerDemandSearchIn, BuyerDemandSearchResponse, BuyerDeliveryConfirmIn, CommitDemandPool, Delivery, DeliveryAdvanceRequestIn, DeliveryEstimateResponse, DemandPoolOpportunity, DemandRequest, DemandRequestCreate, LedgerCaptureMode, LedgerEntry, LedgerPaymentCreate, LedgerSummary, Listing, ListingCreate, ListingQualityUpdateIn, MarketPriceReference, NotificationRecord, NotificationRecipientRole, OpsDashboardResponse, OpsMetricSnapshot, Order, OrderCreate, PoolCommitIn, PoolMember, PricingSuggestionIn, ProduceQualityAssessment, SellerDashboard, SellerLedgerView, SellerNotification, SellerProfile, SourceChannel
 from app.services.extraction import ExtractionService
 from app.services.geo_service import GeoService
+from app.services.market_price_service import MarketPriceService
 from app.services.speech_service import SpeechService
 from app.services.store import JsonStore
 from app.services.whatsapp_service import WhatsAppService
@@ -23,12 +23,133 @@ class MarketplaceService:
         self.extractor = ExtractionService()
         self.speech = SpeechService()
         self.geo = GeoService()
+        self.market_price = MarketPriceService()
         self.whatsapp = WhatsAppService()
 
     def _public_image_url(self, image_url: str | None) -> str | None:
         if image_url and image_url.startswith(('http://', 'https://')):
             return image_url
         return None
+
+    def _price_intelligence_for_listing(
+        self,
+        *,
+        product_name: str,
+        quality_grade: str | None,
+        seller_price_per_kg: float | None,
+        pickup_location: str | None,
+    ) -> MarketPriceReference | None:
+        try:
+            return self.market_price.suggest_listing_price(
+                product_name=product_name,
+                quality_grade=quality_grade,
+                seller_price=seller_price_per_kg,
+                pickup_location=pickup_location,
+            )
+        except Exception:
+            return None
+
+    def _compute_delivery_estimate(
+        self,
+        *,
+        listing: Listing,
+        quantity_kg: float,
+        delivery_address: str,
+    ) -> DeliveryEstimateResponse:
+        normalized_address = delivery_address.strip()
+        geocoded = self.geo.geocode(normalized_address)
+        buyer_lat = geocoded.get('latitude') if geocoded else None
+        buyer_lng = geocoded.get('longitude') if geocoded else None
+        normalized_address = geocoded.get('pickup_location') if geocoded and geocoded.get('pickup_location') else normalized_address
+
+        profile = self.store.get_seller_profile(listing.seller_id)
+        seller_lat = profile.latitude if (profile and profile.latitude is not None) else listing.latitude
+        seller_lng = profile.longitude if (profile and profile.longitude is not None) else listing.longitude
+        seller_pickup_location = (profile.default_pickup_location if profile and profile.default_pickup_location else listing.pickup_location)
+
+        distance_km, distance_source = self.geo.resolve_distance(
+            origin_address=seller_pickup_location,
+            destination_address=normalized_address,
+            origin_lat=seller_lat,
+            origin_lng=seller_lng,
+            destination_lat=buyer_lat,
+            destination_lng=buyer_lng,
+        )
+        breakdown = self.geo.estimate_delivery_breakdown(
+            quantity_kg=quantity_kg,
+            distance_km=distance_km,
+            distance_source=distance_source,
+        )
+        return DeliveryEstimateResponse(
+            listing_id=listing.id,
+            seller_id=listing.seller_id,
+            seller_pickup_location=seller_pickup_location,
+            delivery_address=normalized_address,
+            quantity_kg=quantity_kg,
+            distance_km=breakdown.distance_km,
+            distance_source=breakdown.distance_source,
+            base_fee=breakdown.base_fee,
+            distance_fee=breakdown.distance_fee,
+            weight_fee=breakdown.weight_fee,
+            surge_fee=breakdown.surge_fee,
+            total_delivery_fee=breakdown.total_delivery_fee,
+            currency=breakdown.currency,
+            fee_label=breakdown.fee_label,
+            pricing_notes=breakdown.pricing_notes,
+        )
+
+    def estimate_delivery(self, listing_id: str, quantity_kg: float, delivery_address: str) -> DeliveryEstimateResponse:
+        listing = self.store.get_listing(listing_id)
+        if listing is None:
+            raise ValueError('Listing not found')
+        return self._compute_delivery_estimate(listing=listing, quantity_kg=quantity_kg, delivery_address=delivery_address)
+
+    def add_role_notification(
+        self,
+        *,
+        recipient_role: NotificationRecipientRole,
+        recipient_id: str | None,
+        category: str,
+        title: str,
+        text: str,
+        entity_type: str | None = None,
+        entity_id: str | None = None,
+        action_label: str | None = None,
+        action_target: str | None = None,
+        channel: str = 'web',
+        delivery_status: str = 'simulated',
+        audio_base64: str | None = None,
+        seller_id: str | None = None,
+        order_id: str | None = None,
+    ) -> NotificationRecord:
+        notification = NotificationRecord(
+            recipient_role=recipient_role,
+            recipient_id=recipient_id,
+            seller_id=seller_id,
+            order_id=order_id,
+            category=category,  # type: ignore[arg-type]
+            title=title,
+            text=text,
+            body=text,
+            entity_type=entity_type,
+            entity_id=entity_id,
+            action_label=action_label,
+            action_target=action_target,
+            channel=channel,
+            delivery_status=delivery_status,
+            audio_base64=audio_base64,
+        )
+        self.store.add_notification(notification.model_dump(mode='json'))
+        return notification
+
+    def notify_buyer(self, recipient_id: str | None, **kwargs) -> NotificationRecord:
+        return self.add_role_notification(recipient_role='buyer', recipient_id=recipient_id, **kwargs)
+
+    def notify_seller(self, recipient_id: str | None, **kwargs) -> NotificationRecord:
+        return self.add_role_notification(recipient_role='seller', recipient_id=recipient_id, **kwargs)
+
+    def notify_ops(self, **kwargs) -> NotificationRecord:
+        return self.add_role_notification(recipient_role='ops', recipient_id='ops-team', **kwargs)
 
     def listing_image_url(
         self,
@@ -167,10 +288,27 @@ class MarketplaceService:
             latitude=draft.latitude,
             longitude=draft.longitude,
             place_id=draft.place_id,
+            market_reference_price_per_kg=draft.market_reference_price_per_kg,
+            suggested_price_per_kg=draft.suggested_price_per_kg,
+            price_intelligence_note=draft.price_intelligence_note,
+            price_intelligence_source=draft.price_intelligence_source,
+            price_intelligence_updated_at=draft.price_intelligence_updated_at,
             source_channel=draft.source_channel,
             raw_message=draft.raw_message,
             freshness_label='AI photo checked' if draft.quality_assessment_source == 'ai_visual' else 'Fresh today',
         )
+        price_reference = self._price_intelligence_for_listing(
+            product_name=listing.product_name,
+            quality_grade=listing.quality_grade,
+            seller_price_per_kg=listing.price_per_kg,
+            pickup_location=listing.pickup_location,
+        )
+        if price_reference is not None:
+            listing.market_reference_price_per_kg = price_reference.mandi_modal_price_per_kg
+            listing.suggested_price_per_kg = price_reference.suggested_price_per_kg
+            listing.price_intelligence_note = price_reference.explanation
+            listing.price_intelligence_source = price_reference.data_source
+            listing.price_intelligence_updated_at = price_reference.fetched_at
         saved_listing = self.store.save_listing(listing)
 
         profile = self.store.get_seller_profile(seller_id)
@@ -193,6 +331,17 @@ class MarketplaceService:
                 f'Your listing is live. {saved_listing.product_name}, '
                 f'{saved_listing.available_kg} kg, Rs {saved_listing.price_per_kg} per kg.'
             ) + quality_text
+        if price_reference is not None and price_reference.mandi_modal_price_per_kg is not None:
+            if profile is not None and profile.preferred_language == 'hi':
+                confirmation_text += (
+                    f' मंडी रेफरेंस लगभग Rs {price_reference.mandi_modal_price_per_kg}/किलो है। '
+                    f'सुझाई गई रेंज Rs {price_reference.suggested_min_price_per_kg}-Rs {price_reference.suggested_max_price_per_kg}/किलो।'
+                )
+            else:
+                confirmation_text += (
+                    f' Mandi reference is about Rs {price_reference.mandi_modal_price_per_kg}/kg. '
+                    f'Suggested range: Rs {price_reference.suggested_min_price_per_kg}-Rs {price_reference.suggested_max_price_per_kg}/kg.'
+                )
         try:
             whatsapp_result = self.whatsapp.send_text_message(to=seller_id, body=confirmation_text)
         except Exception as exc:  # pragma: no cover - network failures depend on runtime
@@ -203,19 +352,62 @@ class MarketplaceService:
         except Exception:  # pragma: no cover - cloud TTS failures depend on runtime
             audio_base64 = None
 
-        notification = SellerNotification(
+        self.notify_seller(
+            recipient_id=seller_id,
             seller_id=seller_id,
             order_id='listing_confirmation',
+            category='pricing' if price_reference is not None else 'system',
+            title='Listing created',
             text=confirmation_text,
-            audio_base64=audio_base64,
+            entity_type='listing',
+            entity_id=saved_listing.id,
+            action_label='View listing',
+            action_target='listings',
+            channel='whatsapp',
             delivery_status=self.whatsapp.delivery_status(whatsapp_result),
+            audio_base64=audio_base64,
         )
-        self.store.add_notification(notification.model_dump())
+        self.notify_ops(
+            category='quality',
+            title='Listing pending quality review',
+            text=f'{saved_listing.product_name} from {saved_listing.seller_name} is awaiting ops review.',
+            entity_type='listing',
+            entity_id=saved_listing.id,
+            action_label='Review lot',
+            action_target='quality',
+            seller_id=seller_id,
+            order_id='listing_confirmation',
+        )
         return saved_listing
 
     def list_live_listings(self) -> list[Listing]:
         items = [listing for listing in self.store.list_listings() if listing.status == 'live']
         return sorted(items, key=lambda item: item.created_at, reverse=True)
+
+    def get_listing_price_intelligence(self, listing_id: str) -> MarketPriceReference:
+        listing = self.store.get_listing(listing_id)
+        if listing is None:
+            raise ValueError('Listing not found')
+        reference = self._price_intelligence_for_listing(
+            product_name=listing.product_name,
+            quality_grade=listing.quality_grade,
+            seller_price_per_kg=listing.price_per_kg,
+            pickup_location=listing.pickup_location,
+        )
+        if reference is None:
+            raise ValueError('Price intelligence unavailable')
+        return reference
+
+    def suggest_price(self, payload: PricingSuggestionIn) -> MarketPriceReference:
+        reference = self.market_price.suggest_listing_price(
+            product_name=payload.product_name,
+            quality_grade=payload.quality_grade,
+            seller_price=payload.seller_price_per_kg,
+            pickup_location=payload.pickup_location,
+        )
+        if reference is None:
+            raise ValueError('Price intelligence unavailable')
+        return reference
 
     def list_seller_profiles(self) -> list[SellerProfile]:
         profiles = self.store.list_seller_profiles()
@@ -324,6 +516,7 @@ class MarketplaceService:
     ) -> str:
         seller_name = (profile.seller_name or 'Seller').strip()
         quantity_line = ''
+        pricing_line = ''
         if pool is not None:
             quantity = f'{pool.total_quantity_kg:g}'
             location = pool.delivery_locations[0] if pool.delivery_locations else None
@@ -337,14 +530,26 @@ class MarketplaceService:
                 if location:
                     quantity_line += f' near {location}'
                 quantity_line += '.'
+            reference = pool.market_price_reference
+            if reference is not None and reference.mandi_modal_price_per_kg is not None:
+                if profile.preferred_language == 'hi':
+                    pricing_line = (
+                        f' मंडी modal भाव लगभग Rs {reference.mandi_modal_price_per_kg}/किलो है।'
+                        f' सुझाया selling price Rs {reference.suggested_min_price_per_kg}-Rs {reference.suggested_max_price_per_kg}/किलो।'
+                    )
+                else:
+                    pricing_line = (
+                        f' Latest mandi reference is Rs {reference.mandi_modal_price_per_kg}/kg modal.'
+                        f' Suggested seller price: Rs {reference.suggested_min_price_per_kg}-Rs {reference.suggested_max_price_per_kg}/kg.'
+                    )
         if profile.preferred_language == 'hi':
             return (
                 f'नमस्ते {seller_name}, अभी {buyer_count} खरीदार {product_name} ढूंढ रहे हैं। '
-                f'{quantity_line} जल्दी बेचने के लिए अभी लिस्ट करें।'
+                f'{quantity_line}{pricing_line} जल्दी बेचने के लिए अभी लिस्ट करें।'
             )
         return (
             f'Hi {seller_name}, {buyer_count} buyers are looking for {product_name} right now. '
-            f'{quantity_line} List now to sell faster.'
+            f'{quantity_line}{pricing_line} List now to sell faster.'
         )
 
     def build_demand_pools(self, window_minutes: int | None = None) -> list[DemandPoolOpportunity]:
@@ -412,6 +617,16 @@ class MarketplaceService:
             formatted_quantity = f'{round(total_quantity_kg, 1):g}'
             unique_buyer_count = len(buyer_ids)
             urgency_label = 'High demand' if unique_buyer_count >= self.settings.demand_push_threshold else 'Emerging demand'
+            market_reference = self.market_price.get_best_market_reference(
+                product_name,
+                pickup_location=delivery_locations[0] if delivery_locations else None,
+            )
+            suggested_action = f'Create a matching {product_name} listing for {formatted_quantity} kg demand from {unique_buyer_count} buyers.'
+            if market_reference is not None and market_reference.mandi_modal_price_per_kg is not None:
+                suggested_action += (
+                    f' Latest mandi modal is Rs {market_reference.mandi_modal_price_per_kg}/kg'
+                    f' with suggested seller range Rs {market_reference.suggested_min_price_per_kg}-Rs {market_reference.suggested_max_price_per_kg}/kg.'
+                )
 
             pools.append(
                 DemandPoolOpportunity(
@@ -428,8 +643,9 @@ class MarketplaceService:
                     buyer_types=buyer_types,
                     window_minutes=effective_window,
                     created_from_event_ids=[event.id for event in events],
-                    suggested_action=f'Create a matching {product_name} listing for {formatted_quantity} kg demand from {unique_buyer_count} buyers.',
+                    suggested_action=suggested_action,
                     urgency_label=urgency_label,
+                    market_price_reference=market_reference,
                 )
             )
 
@@ -547,13 +763,20 @@ class MarketplaceService:
             elif callable(release_fingerprint):
                 release_fingerprint(fingerprint)
 
-            notification = SellerNotification(
+            self.notify_seller(
+                recipient_id=profile.seller_id,
                 seller_id=profile.seller_id,
                 order_id=f'demand_push:{event.id}',
+                category='demand',
+                title='Demand threshold reached',
                 text=message_text,
+                entity_type='demand',
+                entity_id=event.id,
+                action_label='View demand pools',
+                action_target='demand',
+                channel='whatsapp',
                 delivery_status=self.whatsapp.delivery_status(whatsapp_result),
             )
-            self.store.add_notification(notification.model_dump())
 
         reason = None
         if not active_sellers:
@@ -676,6 +899,24 @@ class MarketplaceService:
             for item in sorted(accepted_orders, key=lambda order: order.created_at, reverse=True)
         ))
         ledger_summary = self._build_ledger_summary(seller_id)
+        recent_price_intelligence = []
+        for item in sorted(live_listings, key=lambda listing: listing.price_intelligence_updated_at or listing.created_at, reverse=True):
+            if item.market_reference_price_per_kg is None:
+                continue
+            recent_price_intelligence.append(
+                MarketPriceReference(
+                    product_name=item.product_name,
+                    normalized_commodity=item.product_name,
+                    market=item.pickup_location,
+                    mandi_modal_price_per_kg=item.market_reference_price_per_kg,
+                    data_source=item.price_intelligence_source or 'demo_fallback',
+                    suggested_price_per_kg=item.suggested_price_per_kg,
+                    suggested_min_price_per_kg=item.suggested_price_per_kg,
+                    suggested_max_price_per_kg=item.suggested_price_per_kg,
+                    explanation=item.price_intelligence_note or 'Recent mandi reference available.',
+                    fetched_at=item.price_intelligence_updated_at or item.created_at,
+                )
+            )
 
         return SellerDashboard(
             seller_id=profile.seller_id,
@@ -697,6 +938,7 @@ class MarketplaceService:
             recent_customers=recent_customers[:5],
             recent_listings=sorted(live_listings, key=lambda item: item.created_at, reverse=True)[:5],
             recent_ledger_entries=ledger_summary.recent_entries,
+            recent_price_intelligence=recent_price_intelligence[:5],
         )
 
     LEGACY_DELIVERY_STATUS_MAP = {
@@ -773,22 +1015,18 @@ class MarketplaceService:
 
         delivery_mode = payload.delivery_mode or 'pickup'
         delivery_address = payload.delivery_address
-        delivery_fee = 0.0
-
+        delivery_estimate = None
         if delivery_mode == 'delivery' and delivery_address:
-            geocoded = self.geo.geocode(delivery_address)
-            buyer_lat = buyer_lng = None
-            if geocoded:
-                delivery_address = geocoded.get('pickup_location') or delivery_address
-                buyer_lat = geocoded.get('latitude')
-                buyer_lng = geocoded.get('longitude')
+            delivery_estimate = self._compute_delivery_estimate(
+                listing=listing,
+                quantity_kg=payload.quantity_kg,
+                delivery_address=delivery_address,
+            )
+            delivery_address = delivery_estimate.delivery_address
 
-            profile = self.store.get_seller_profile(listing.seller_id)
-            seller_lat = profile.latitude if (profile and profile.latitude is not None) else listing.latitude
-            seller_lng = profile.longitude if (profile and profile.longitude is not None) else listing.longitude
-
-            distance = self.geo.haversine_km(seller_lat, seller_lng, buyer_lat, buyer_lng)
-            delivery_fee = self.geo.estimate_delivery_fee(distance)
+        produce_subtotal = round(payload.quantity_kg * listing.price_per_kg, 2)
+        delivery_fee = float(delivery_estimate.total_delivery_fee if delivery_estimate is not None else 0.0)
+        buyer_total_payable = round(produce_subtotal + delivery_fee, 2)
 
         order = Order(
             listing_id=listing.id,
@@ -796,29 +1034,53 @@ class MarketplaceService:
             seller_name=listing.seller_name,
             product_name=listing.product_name,
             buyer_name=payload.buyer_name,
+            buyer_phone=payload.phone,
             buyer_type=payload.buyer_type,
             quantity_kg=payload.quantity_kg,
             pickup_time=payload.pickup_time,
             unit_price=listing.price_per_kg,
-            total_price=round(payload.quantity_kg * listing.price_per_kg, 2),
+            total_price=produce_subtotal,
+            produce_subtotal=produce_subtotal,
             delivery_mode=delivery_mode,
             delivery_address=delivery_address,
+            delivery_distance_km=delivery_estimate.distance_km if delivery_estimate is not None else None,
             delivery_fee=delivery_fee,
+            buyer_total_payable=buyer_total_payable,
+            delivery_fee_breakdown=(
+                self.geo.estimate_delivery_breakdown(
+                    quantity_kg=payload.quantity_kg,
+                    distance_km=delivery_estimate.distance_km,
+                    distance_source=delivery_estimate.distance_source,
+                )
+                if delivery_estimate is not None
+                else None
+            ),
             fulfillment_status='pending',
         )
         self.store.save_order(order)
 
         profile = self.store.get_seller_profile(listing.seller_id)
         quantity = f'{payload.quantity_kg:g}'
+        delivery_suffix = ''
+        if delivery_estimate is not None:
+            distance_display = f'{delivery_estimate.distance_km:g} km' if delivery_estimate.distance_km is not None else 'route pending'
+            if profile is not None and profile.preferred_language == 'hi':
+                delivery_suffix = (
+                    f' माल Rs {produce_subtotal:g} + डिलिवरी Rs {delivery_fee:g}, दूरी लगभग {distance_display}.'
+                )
+            else:
+                delivery_suffix = (
+                    f' Produce Rs {produce_subtotal:g} + delivery Rs {delivery_fee:g} for {distance_display}.'
+                )
         if profile is not None and profile.preferred_language == 'hi':
             notification_text = (
                 f'{payload.quantity_kg} किलो {listing.product_name.lower()} का ऑर्डर {payload.buyer_name} से आया है। '
-                f'पिकअप: {payload.pickup_time}। हाँ या नहीं जवाब दें।'
+                f'{delivery_suffix} पिकअप: {payload.pickup_time}। हाँ या नहीं जवाब दें।'
             )
         else:
             notification_text = (
                 f'New order: {quantity} kg {listing.product_name} from {payload.buyer_name}. '
-                f'Pickup {payload.pickup_time}. Tap Accept or Reject, or reply YES/NO.'
+                f'{delivery_suffix} Pickup {payload.pickup_time}. Tap Accept or Reject, or reply YES/NO.'
             )
         try:
             whatsapp_result = self.whatsapp.send_reply_buttons(
@@ -839,14 +1101,36 @@ class MarketplaceService:
         except Exception:  # pragma: no cover - cloud TTS failures depend on runtime
             audio_base64 = None
 
-        notification = SellerNotification(
+        self.notify_seller(
+            recipient_id=listing.seller_id,
             seller_id=listing.seller_id,
             order_id=order.id,
+            category='order',
+            title='New order',
             text=notification_text,
-            audio_base64=audio_base64,
+            entity_type='order',
+            entity_id=order.id,
+            action_label='Review order',
+            action_target='orders',
+            channel='whatsapp',
             delivery_status=self.whatsapp.delivery_status(whatsapp_result),
+            audio_base64=audio_base64,
         )
-        self.store.add_notification(notification.model_dump())
+        self.notify_buyer(
+            recipient_id=payload.phone,
+            category='order',
+            title='Order placed',
+            text=(
+                f'Order placed for {listing.product_name}. Produce subtotal Rs {produce_subtotal:g}, '
+                f'delivery Rs {delivery_fee:g}, total estimate Rs {buyer_total_payable:g}.'
+            ),
+            entity_type='order',
+            entity_id=order.id,
+            action_label='View order',
+            action_target='orders',
+            seller_id=listing.seller_id,
+            order_id=order.id,
+        )
         return order
 
     def respond_to_order(self, order_id: str, decision: str) -> Order:
@@ -887,7 +1171,7 @@ class MarketplaceService:
                     pool_id=order.pool_id,
                     seller_id=order.seller_id,
                     seller_name=order.seller_name,
-                    buyer_id=None,
+                    buyer_id=order.buyer_phone,
                     buyer_name=order.buyer_name,
                     product_name=order.product_name,
                     quantity_kg=order.quantity_kg,
@@ -901,9 +1185,33 @@ class MarketplaceService:
                     current_actor_role='ops' if listing.quality_status == 'pending' else 'seller',
                 )
                 self.store.save_delivery(delivery)
+            self.notify_buyer(
+                recipient_id=order.buyer_phone,
+                category='order',
+                title='Seller accepted order',
+                text=f'{order.seller_name} accepted your {order.product_name} order for {order.quantity_kg:g} kg.',
+                entity_type='order',
+                entity_id=order.id,
+                action_label='Track delivery' if order.delivery_mode == 'delivery' else 'View order',
+                action_target='orders',
+                seller_id=order.seller_id,
+                order_id=order.id,
+            )
         else:
             order.status = 'rejected'
             order.fulfillment_status = 'cancelled'
+            self.notify_buyer(
+                recipient_id=order.buyer_phone,
+                category='order',
+                title='Seller rejected order',
+                text=f'{order.seller_name} could not accept your {order.product_name} order.',
+                entity_type='order',
+                entity_id=order.id,
+                action_label='Browse listings',
+                action_target='marketplace',
+                seller_id=order.seller_id,
+                order_id=order.id,
+            )
 
         self.store.save_order(order)
         self.store.save_listing(listing)
@@ -919,6 +1227,18 @@ class MarketplaceService:
             recent_orders=recent_orders,
         )
         self.store.save_insight(insight)
+        if decision == 'accept' and order.delivery_mode == 'delivery':
+            self.notify_ops(
+                category='delivery',
+                title='Delivery moved to ops',
+                text=f'{order.product_name} order {order.id} needs managed delivery coordination.',
+                entity_type='delivery',
+                entity_id=order.id,
+                action_label='Open deliveries',
+                action_target='deliveries',
+                seller_id=order.seller_id,
+                order_id=order.id,
+            )
         return order
 
     def create_demand_request(self, payload: DemandRequestCreate) -> DemandRequest:
@@ -960,6 +1280,16 @@ class MarketplaceService:
         )
         self.store.save_demand_request(request)
         self.rebuild_commit_pools(product_name=product_name)
+        self.notify_buyer(
+            recipient_id=payload.phone,
+            category='demand',
+            title='Demand request created',
+            text=f'Demand request created for {product_name}, {payload.quantity_kg:g} kg at {address}.',
+            entity_type='demand',
+            entity_id=request.id,
+            action_label='View my demands',
+            action_target='demand',
+        )
         return request
 
     def _locality_key(self, product_name: str, lat: float | None, lng: float | None, address: str | None) -> str:
@@ -1016,6 +1346,10 @@ class MarketplaceService:
                 centroid_lat=centroid_lat,
                 centroid_lng=centroid_lng,
                 members=members,
+                market_price_reference=self.market_price.get_best_market_reference(
+                    reqs[0].product_name,
+                    pickup_location=reqs[0].delivery_address,
+                ),
                 status=status,
             )
             self.store.save_commit_pool(pool)
@@ -1031,14 +1365,29 @@ class MarketplaceService:
                 mark_finger = getattr(self.store, 'mark_demand_alert_fingerprint_processed', None)
                 if callable(claim_finger) and claim_finger(fingerprint, window_seconds=86400):
                     active_sellers = [p for p in self.list_seller_profiles() if p.registration_status == 'active']
-                    alert_body = f'{pool.total_quantity_kg:g} kg {pool.product_name} demand pooled in {pool.locality_label} — open the app to commit.'
+                    alert_body = f'{pool.total_quantity_kg:g} kg {pool.product_name} demand pooled in {pool.locality_label} - open the app to commit.'
+                    if pool.market_price_reference is not None and pool.market_price_reference.mandi_modal_price_per_kg is not None:
+                        alert_body += (
+                            f' Latest mandi modal Rs {pool.market_price_reference.mandi_modal_price_per_kg}/kg.'
+                            f' Suggested seller price Rs {pool.market_price_reference.suggested_min_price_per_kg}-Rs {pool.market_price_reference.suggested_max_price_per_kg}/kg.'
+                        )
                     for profile in active_sellers:
                         try:
                             whatsapp_res = self.whatsapp.send_text_message(to=profile.seller_id, body=alert_body)
-                            self.store.add_notification(SellerNotification(
-                                seller_id=profile.seller_id, order_id=f'pool_alert:{pool.id}', text=alert_body,
+                            self.notify_seller(
+                                recipient_id=profile.seller_id,
+                                seller_id=profile.seller_id,
+                                order_id=f'pool_alert:{pool.id}',
+                                category='demand',
+                                title='Demand pool open',
+                                text=alert_body,
+                                entity_type='pool',
+                                entity_id=pool.id,
+                                action_label='Open demand pools',
+                                action_target='demand',
+                                channel='whatsapp',
                                 delivery_status=self.whatsapp.delivery_status(whatsapp_res),
-                            ).model_dump())
+                            )
                         except Exception:
                             pass
                     if callable(mark_finger):
@@ -1079,26 +1428,36 @@ class MarketplaceService:
         created_orders = []
         created_deliveries = []
         for member in pool.members:
+            distance = self.geo.haversine_km(seller_lat, seller_lng, member.latitude, member.longitude)
+            breakdown = self.geo.estimate_delivery_breakdown(
+                quantity_kg=member.quantity_kg,
+                distance_km=distance,
+                distance_source='haversine' if distance is not None else 'unavailable',
+            )
+            produce_subtotal = round(member.quantity_kg * price, 2)
             order = Order(
                 listing_id=listing.id,
                 seller_id=listing.seller_id,
                 seller_name=listing.seller_name,
                 product_name=listing.product_name,
                 buyer_name=member.buyer_name,
+                buyer_phone=None,
                 buyer_type='kirana',
                 quantity_kg=member.quantity_kg,
                 pickup_time=pool.locality_label,
                 unit_price=price,
-                total_price=round(member.quantity_kg * price, 2),
+                total_price=produce_subtotal,
+                produce_subtotal=produce_subtotal,
                 status='accepted',
                 delivery_mode='delivery',
                 delivery_address=member.delivery_address,
+                delivery_distance_km=distance,
+                delivery_fee=breakdown.total_delivery_fee,
+                buyer_total_payable=round(produce_subtotal + breakdown.total_delivery_fee, 2),
+                delivery_fee_breakdown=breakdown,
                 pool_id=pool.id,
                 fulfillment_status='order_accepted',
             )
-            distance = self.geo.haversine_km(seller_lat, seller_lng, member.latitude, member.longitude)
-            fee = self.geo.estimate_delivery_fee(distance)
-            order.delivery_fee = fee
             self.store.save_order(order)
             created_orders.append(order)
 
@@ -1116,12 +1475,27 @@ class MarketplaceService:
                 latitude=member.latitude,
                 longitude=member.longitude,
                 distance_km=distance,
-                delivery_fee=fee,
+                delivery_fee=breakdown.total_delivery_fee,
                 status='order_accepted',
                 current_actor_role='ops' if listing.quality_status == 'pending' else 'seller',
             )
             self.store.save_delivery(delivery)
             created_deliveries.append(delivery)
+            self.notify_buyer(
+                recipient_id=member.buyer_id,
+                category='demand',
+                title='Seller committed to your demand pool',
+                text=(
+                    f'{listing.seller_name} committed to your {listing.product_name} demand. '
+                    f'Estimated total is Rs {order.buyer_total_payable:g}.'
+                ),
+                entity_type='order',
+                entity_id=order.id,
+                action_label='Track delivery',
+                action_target='orders',
+                seller_id=listing.seller_id,
+                order_id=order.id,
+            )
 
             req = self.store.get_demand_request(member.request_id)
             if req:
@@ -1150,12 +1524,20 @@ class MarketplaceService:
         except Exception as exc:
             result = {'sent': False, 'reason': 'send_failed', 'error': str(exc)}
         
-        self.store.add_notification(SellerNotification(
+        self.notify_seller(
+            recipient_id=listing.seller_id,
             seller_id=listing.seller_id,
             order_id=f'pool_commit:{pool.id}',
+            category='demand',
+            title='Pool committed',
             text=msg,
+            entity_type='pool',
+            entity_id=pool.id,
+            action_label='Open deliveries',
+            action_target='deliveries',
+            channel='whatsapp',
             delivery_status=self.whatsapp.delivery_status(result),
-        ).model_dump())
+        )
 
         return {'pool': pool, 'orders': created_orders, 'deliveries': created_deliveries}
 
@@ -1164,7 +1546,18 @@ class MarketplaceService:
         if seller_id:
             items = [d for d in items if d.seller_id == seller_id]
         if buyer_id:
-            items = [d for d in items if d.buyer_id == buyer_id]
+            matched: list[Delivery] = []
+            for delivery in items:
+                if delivery.buyer_id == buyer_id:
+                    matched.append(delivery)
+                    continue
+                if delivery.buyer_id is None:
+                    order = self.store.get_order(delivery.order_id)
+                    if order and order.buyer_phone == buyer_id:
+                        delivery.buyer_id = buyer_id
+                        self.store.save_delivery(delivery)
+                        matched.append(delivery)
+            items = matched
         for delivery in items:
             canonical_status = self._canonical_delivery_status(delivery.status)
             if canonical_status != delivery.status:
@@ -1225,6 +1618,23 @@ class MarketplaceService:
                     order.quality_issue_notes = payload.notes
                 self.store.save_order(order)
 
+        seller_text = (
+            f'{listing.product_name} quality approved with grade {listing.quality_grade}.'
+            if payload.status == 'approved'
+            else f'{listing.product_name} quality rejected. {payload.notes or ""}'.strip()
+        )
+        self.notify_seller(
+            recipient_id=listing.seller_id,
+            seller_id=listing.seller_id,
+            order_id=f'quality:{listing.id}',
+            category='quality',
+            title='Listing quality updated',
+            text=seller_text,
+            entity_type='listing',
+            entity_id=listing.id,
+            action_label='View listing',
+            action_target='profile',
+        )
         return listing
 
     def build_ops_metrics(self) -> OpsMetricSnapshot:
@@ -1318,6 +1728,31 @@ class MarketplaceService:
                         pool.status = 'fulfilling'
                     pool.updated_at = datetime.utcnow()
                     self.store.save_commit_pool(pool)
+        self.notify_seller(
+            recipient_id=delivery.seller_id,
+            seller_id=delivery.seller_id,
+            order_id=delivery.order_id,
+            category='delivery',
+            title='Delivery status updated',
+            text=f'{delivery.product_name} delivery moved to {next_status.replace("_", " ")}.',
+            entity_type='delivery',
+            entity_id=delivery.id,
+            action_label='Open deliveries',
+            action_target='deliveries',
+        )
+        if delivery.buyer_id:
+            self.notify_buyer(
+                recipient_id=delivery.buyer_id,
+                category='delivery',
+                title='Delivery status updated',
+                text=f'{delivery.product_name} delivery is now {next_status.replace("_", " ")}.',
+                entity_type='delivery',
+                entity_id=delivery.id,
+                action_label='Track delivery',
+                action_target='orders',
+                seller_id=delivery.seller_id,
+                order_id=delivery.order_id,
+            )
         return delivery
 
     def advance_delivery_for_actor(self, delivery_id: str, payload: DeliveryAdvanceRequestIn) -> Delivery:

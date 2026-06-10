@@ -1,5 +1,8 @@
 import './DashboardLayout.css';
 import type { ReactNode } from 'react';
+import NotificationCenter from '../NotificationCenter';
+import { t, type Language } from '../../i18n';
+import type { Notification } from '../../types';
 
 type DashboardIcon =
   | 'marketplace'
@@ -116,6 +119,11 @@ export default function DashboardLayout({
   language,
   onLanguageChange,
   unreadNotifications,
+  notifications,
+  notificationOpen,
+  onToggleNotifications,
+  onMarkNotificationRead,
+  onMarkAllNotificationsRead,
   sessionLabel,
   onLogout,
   children,
@@ -132,24 +140,39 @@ export default function DashboardLayout({
   searchValue: string;
   onSearchChange: (value: string) => void;
   searchPlaceholder: string;
-  language: 'en' | 'hi';
-  onLanguageChange: (language: 'en' | 'hi') => void;
+  language: Language;
+  onLanguageChange: (language: Language) => void;
   unreadNotifications: number;
+  notifications: Notification[];
+  notificationOpen: boolean;
+  onToggleNotifications: () => void;
+  onMarkNotificationRead: (notificationId: string) => Promise<void>;
+  onMarkAllNotificationsRead: () => Promise<void>;
   sessionLabel: string;
   onLogout: () => void;
   children: ReactNode;
 }) {
   const pageTitle = titleFor(role, sectionId);
+  const mobileRoleLabel = role === 'seller'
+    ? t(language, 'dashboard.sellerDashboard')
+    : role === 'ops'
+      ? t(language, 'dashboard.opsDashboard')
+      : t(language, 'dashboard.buyerDashboard');
+  const networkLabel = role === 'seller'
+    ? t(language, 'dashboard.sellerNetwork')
+    : role === 'ops'
+      ? t(language, 'dashboard.opsNetwork')
+      : t(language, 'dashboard.buyerNetwork');
 
   return (
     <div className="bb-shell">
       <aside className={`bb-sidebar ${isSidebarCollapsed ? 'is-collapsed' : ''}`}>
         <div className="bb-sidebar-brand">
-          <button type="button" className="bb-sidebar-brand-button" onClick={onToggleSidebar} aria-label="Toggle sidebar">
+          <button type="button" className="bb-sidebar-brand-button" onClick={onToggleSidebar} aria-label={t(language, 'dashboard.toggleSidebar')}>
             <span className="bb-sidebar-brand-mark">BB</span>
             <span className="bb-sidebar-brand-copy">
               <strong>{brand}</strong>
-              <small>{role === 'seller' ? 'Seller OS' : role === 'ops' ? 'Ops OS' : 'Buyer OS'}</small>
+              <small>{role === 'seller' ? t(language, 'dashboard.sellerOs') : role === 'ops' ? t(language, 'dashboard.opsOs') : t(language, 'dashboard.buyerOs')}</small>
             </span>
             <span className={`bb-sidebar-collapse ${isSidebarCollapsed ? 'is-collapsed' : ''}`}><Icon name="collapse" /></span>
           </button>
@@ -175,9 +198,9 @@ export default function DashboardLayout({
 
         <div className="bb-sidebar-footer">
           <div className="bb-sidebar-note">
-            <span className="bb-sidebar-note-label">WhatsApp-first</span>
-            <strong>Live marketplace operations</strong>
-            <p>Listings, khata, demand alerts, and verification stay mapped to the same seller phone workflow.</p>
+            <span className="bb-sidebar-note-label">{t(language, 'dashboard.whatsAppFirst')}</span>
+            <strong>{t(language, 'dashboard.liveOps')}</strong>
+            <p>{t(language, 'dashboard.whatsAppBody')}</p>
           </div>
         </div>
       </aside>
@@ -187,9 +210,9 @@ export default function DashboardLayout({
         <div className="bb-mobile-head">
           <div>
             <strong>{brand}</strong>
-            <small>{role === 'seller' ? 'Seller dashboard' : role === 'ops' ? 'Ops dashboard' : 'Buyer dashboard'}</small>
+            <small>{mobileRoleLabel}</small>
           </div>
-          <button type="button" className="bb-icon-button" onClick={onToggleMobileSidebar} aria-label="Close navigation">
+          <button type="button" className="bb-icon-button" onClick={onToggleMobileSidebar} aria-label={t(language, 'dashboard.closeNavigation')}>
             <Icon name="close" />
           </button>
         </div>
@@ -217,11 +240,11 @@ export default function DashboardLayout({
       <div className="bb-main">
         <header className="bb-topbar">
           <div className="bb-topbar-leading">
-            <button type="button" className="bb-icon-button bb-mobile-only" onClick={onToggleMobileSidebar} aria-label="Open navigation">
+            <button type="button" className="bb-icon-button bb-mobile-only" onClick={onToggleMobileSidebar} aria-label={t(language, 'dashboard.openNavigation')}>
               <Icon name="menu" />
             </button>
             <div className="bb-page-title">
-              <span>{role === 'seller' ? 'BolBazaar Seller Network' : role === 'ops' ? 'BolBazaar Ops Network' : 'BolBazaar Buyer Network'}</span>
+              <span>{networkLabel}</span>
               <strong>{pageTitle}</strong>
             </div>
           </div>
@@ -233,24 +256,33 @@ export default function DashboardLayout({
                 value={searchValue}
                 onChange={(event) => onSearchChange(event.target.value)}
                 placeholder={searchPlaceholder}
-                aria-label="Search workspace"
+                aria-label={t(language, 'dashboard.searchWorkspace')}
               />
             </label>
 
-            <div className="language-switcher" aria-label="Language switcher">
+            <div className="language-switcher" aria-label={t(language, 'dashboard.languageSwitcher')}>
               <button type="button" className={language === 'en' ? 'language-switch-active' : ''} onClick={() => onLanguageChange('en')}>EN</button>
               <button type="button" className={language === 'hi' ? 'language-switch-active' : ''} onClick={() => onLanguageChange('hi')}>HI</button>
             </div>
 
-            <button type="button" className="bb-icon-button" aria-label="Notifications">
+            <button type="button" className="bb-icon-button" aria-label={t(language, 'common.notifications')} onClick={onToggleNotifications}>
               <Icon name="bell" />
               {unreadNotifications > 0 ? <span className="bb-notification-count">{Math.min(unreadNotifications, 9)}</span> : null}
             </button>
 
             <span className="bb-session-chip">{sessionLabel}</span>
-            <button type="button" className="ghost-button small" onClick={onLogout}>Logout</button>
+            <button type="button" className="ghost-button small" onClick={onLogout}>{t(language, 'common.logout')}</button>
           </div>
         </header>
+
+        <NotificationCenter
+          open={notificationOpen}
+          language={language}
+          notifications={notifications}
+          onClose={onToggleNotifications}
+          onMarkRead={onMarkNotificationRead}
+          onMarkAllRead={onMarkAllNotificationsRead}
+        />
 
         <main className="bb-content">{children}</main>
       </div>

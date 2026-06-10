@@ -13,6 +13,8 @@ ListingStatus = Literal['live', 'paused', 'sold_out']
 SourceChannel = Literal['whatsapp', 'demo', 'api']
 QualityAssessmentSource = Literal['text_signal', 'ai_visual']
 AuthRole = Literal['buyer', 'seller', 'ops']
+NotificationRecipientRole = Literal['buyer', 'seller', 'ops', 'all']
+NotificationCategory = Literal['order', 'delivery', 'demand', 'quality', 'pricing', 'ledger', 'system']
 OtpDeliveryMethod = Literal['whatsapp', 'demo_preview']
 OtpDeliveryStatus = Literal['sent', 'preview', 'failed']
 SellerLanguage = Literal['hi', 'en']
@@ -23,6 +25,7 @@ LedgerEntryKind = Literal['sale', 'payment']
 LedgerParseSource = Literal['rule_based', 'ai_structured']
 LedgerCaptureMode = Literal['voice_note', 'text_message']
 DeliveryMode = Literal['pickup', 'delivery']
+DistanceSource = Literal['google_maps', 'haversine', 'unavailable']
 ListingQualityStatus = Literal['pending', 'approved', 'rejected']
 ListingQualityGrade = Literal['A', 'B', 'C']
 FulfillmentDeliveryStatus = Literal[
@@ -194,6 +197,7 @@ class DemandPoolOpportunity(BaseModel):
     created_from_event_ids: list[str] = Field(default_factory=list)
     suggested_action: str
     urgency_label: str
+    market_price_reference: MarketPriceReference | None = None
 
 
 class DemandPoolResponse(BaseModel):
@@ -209,6 +213,98 @@ class ProduceQualityAssessment(BaseModel):
     detected_product_name: str | None = None
     detected_category: ProductCategory | None = None
     estimated_visible_count: int | None = Field(default=None, ge=0)
+
+
+class DeliveryFeeBreakdown(BaseModel):
+    distance_km: float | None = Field(default=None, ge=0)
+    distance_source: DistanceSource = 'unavailable'
+    base_fee: float = 0
+    distance_fee: float = 0
+    weight_fee: float = 0
+    surge_fee: float = 0
+    total_delivery_fee: float = 0
+    currency: str = 'INR'
+    fee_label: str = 'Estimated delivery fee'
+    pricing_notes: list[str] = Field(default_factory=list)
+
+
+class DeliveryEstimateIn(BaseModel):
+    listing_id: str
+    quantity_kg: float = Field(gt=0)
+    delivery_address: str = Field(min_length=2, max_length=300)
+
+
+class DeliveryEstimateResponse(BaseModel):
+    listing_id: str
+    seller_id: str
+    seller_pickup_location: str
+    delivery_address: str
+    quantity_kg: float
+    distance_km: float | None = Field(default=None, ge=0)
+    distance_source: DistanceSource = 'unavailable'
+    base_fee: float = 0
+    distance_fee: float = 0
+    weight_fee: float = 0
+    surge_fee: float = 0
+    total_delivery_fee: float = 0
+    currency: str = 'INR'
+    fee_label: str = 'Estimated delivery fee'
+    pricing_notes: list[str] = Field(default_factory=list)
+
+
+class MarketPriceReference(BaseModel):
+    product_name: str
+    normalized_commodity: str
+    state: str | None = None
+    district: str | None = None
+    market: str | None = None
+    mandi_min_price_per_kg: float | None = Field(default=None, ge=0)
+    mandi_max_price_per_kg: float | None = Field(default=None, ge=0)
+    mandi_modal_price_per_kg: float | None = Field(default=None, ge=0)
+    mandi_modal_price_raw: float | None = Field(default=None, ge=0)
+    raw_unit: str = 'quintal'
+    arrival_date: str | None = None
+    data_source: str = 'demo_fallback'
+    confidence: float = Field(default=0.4, ge=0, le=1)
+    suggested_price_per_kg: float | None = Field(default=None, ge=0)
+    suggested_min_price_per_kg: float | None = Field(default=None, ge=0)
+    suggested_max_price_per_kg: float | None = Field(default=None, ge=0)
+    explanation: str
+    fetched_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class PricingSuggestionIn(BaseModel):
+    product_name: str = Field(min_length=2, max_length=120)
+    quality_grade: str | None = None
+    seller_price_per_kg: float | None = Field(default=None, gt=0)
+    pickup_location: str | None = None
+
+
+class NotificationRecord(BaseModel):
+    id: str = Field(default_factory=lambda: f'ntf_{uuid4().hex[:10]}')
+    recipient_role: NotificationRecipientRole = 'seller'
+    recipient_id: str | None = None
+    seller_id: str | None = None
+    order_id: str | None = None
+    category: NotificationCategory = 'system'
+    title: str
+    text: str
+    body: str | None = None
+    entity_type: str | None = None
+    entity_id: str | None = None
+    action_label: str | None = None
+    action_target: str | None = None
+    action_url: str | None = None
+    audio_base64: str | None = None
+    channel: str = 'web'
+    delivery_status: str = 'simulated'
+    read_at: datetime | None = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class NotificationReadAllIn(BaseModel):
+    role: NotificationRecipientRole
+    recipient_id: str | None = None
 
 
 class ListingCreate(BaseModel):
@@ -237,6 +333,11 @@ class ListingCreate(BaseModel):
     latitude: float | None = None
     longitude: float | None = None
     place_id: str | None = None
+    market_reference_price_per_kg: float | None = Field(default=None, ge=0)
+    suggested_price_per_kg: float | None = Field(default=None, ge=0)
+    price_intelligence_note: str | None = None
+    price_intelligence_source: str | None = None
+    price_intelligence_updated_at: datetime | None = None
     source_channel: SourceChannel = 'api'
     raw_message: str | None = None
 
@@ -269,6 +370,11 @@ class Listing(BaseModel):
     latitude: float | None = None
     longitude: float | None = None
     place_id: str | None = None
+    market_reference_price_per_kg: float | None = Field(default=None, ge=0)
+    suggested_price_per_kg: float | None = Field(default=None, ge=0)
+    price_intelligence_note: str | None = None
+    price_intelligence_source: str | None = None
+    price_intelligence_updated_at: datetime | None = None
     source_channel: SourceChannel = 'api'
     raw_message: str | None = None
     status: ListingStatus = 'live'
@@ -298,15 +404,20 @@ class Order(BaseModel):
     seller_name: str
     product_name: str = 'items'
     buyer_name: str
+    buyer_phone: str | None = None
     buyer_type: Literal['kirana', 'restaurant', 'canteen', 'retailer']
     quantity_kg: float
     pickup_time: str
     unit_price: float
     total_price: float
+    produce_subtotal: float = 0
     status: OrderStatus = 'pending'
     delivery_mode: DeliveryMode = 'pickup'
     delivery_address: str | None = None
+    delivery_distance_km: float | None = Field(default=None, ge=0)
     delivery_fee: float = 0
+    buyer_total_payable: float = 0
+    delivery_fee_breakdown: DeliveryFeeBreakdown | None = None
     fulfillment_status: FulfillmentDeliveryStatus = 'pending'
     quality_issue_reported: bool = False
     quality_issue_notes: str | None = None
@@ -423,6 +534,7 @@ class SellerDashboard(BaseModel):
     recent_customers: list[str] = Field(default_factory=list)
     recent_listings: list[Listing] = Field(default_factory=list)
     recent_ledger_entries: list[LedgerEntry] = Field(default_factory=list)
+    recent_price_intelligence: list[MarketPriceReference] = Field(default_factory=list)
 
 
 class DemoSeedResponse(BaseModel):
@@ -498,6 +610,7 @@ class CommitDemandPool(BaseModel):   # persisted, commitable pool (distinct from
     centroid_lat: float | None = None
     centroid_lng: float | None = None
     members: list[PoolMember] = Field(default_factory=list)
+    market_price_reference: MarketPriceReference | None = None
     status: DemandPoolStatus = 'open'
     committed_seller_id: str | None = None
     committed_seller_name: str | None = None

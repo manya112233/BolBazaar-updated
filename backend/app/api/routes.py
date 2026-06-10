@@ -9,7 +9,7 @@ from fastapi.responses import PlainTextResponse
 from app.dependencies import get_auth_service, get_marketplace, get_store
 from datetime import datetime, timedelta
 
-from app.schemas import BuyerDemandEvent, BuyerDemandSearchIn, BuyerDemandSearchResponse, BuyerDeliveryConfirmIn, DeliveryAdvanceIn, DeliveryAdvanceRequestIn, DemandPoolResponse, DemoSeedResponse, LedgerPaymentCreate, ListingQualityUpdateIn, ListingResponse, OrderCreate, OrderDecisionIn, OtpRequestIn, OtpRequestResponse, OtpVerifyIn, OtpVerifyResponse, SellerLedgerView, SellerMessageIn, SellerProfile, DemandRequestCreate, PoolCommitIn
+from app.schemas import BuyerDemandEvent, BuyerDemandSearchIn, BuyerDemandSearchResponse, BuyerDeliveryConfirmIn, DeliveryAdvanceIn, DeliveryAdvanceRequestIn, DeliveryEstimateIn, DeliveryEstimateResponse, DemandPoolResponse, DemoSeedResponse, LedgerPaymentCreate, ListingQualityUpdateIn, ListingResponse, NotificationReadAllIn, OrderCreate, OrderDecisionIn, OtpRequestIn, OtpRequestResponse, OtpVerifyIn, OtpVerifyResponse, PricingSuggestionIn, SellerLedgerView, SellerMessageIn, SellerProfile, DemandRequestCreate, PoolCommitIn
 from app.services.auth_service import AuthService
 from app.services.marketplace import MarketplaceService
 from app.services.seller_flow import SellerFlowService
@@ -356,6 +356,51 @@ def get_listing(listing_id: str, store: Any = Depends(get_store)) -> dict:
     return listing.model_dump()
 
 
+@router.post('/delivery/estimate', response_model=DeliveryEstimateResponse)
+def estimate_delivery(payload: DeliveryEstimateIn, marketplace: MarketplaceService = Depends(get_marketplace)) -> DeliveryEstimateResponse:
+    try:
+        return marketplace.estimate_delivery(payload.listing_id, payload.quantity_kg, payload.delivery_address)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.get('/market-prices')
+def get_market_prices(
+    commodity: str,
+    state: str | None = Query(default=None),
+    district: str | None = Query(default=None),
+    market: str | None = Query(default=None),
+    marketplace: MarketplaceService = Depends(get_marketplace),
+) -> dict:
+    return {
+        'items': [
+            item.model_dump(mode='json')
+            for item in marketplace.market_price.get_market_prices(
+                commodity=commodity,
+                state=state,
+                district=district,
+                market=market,
+            )
+        ]
+    }
+
+
+@router.get('/listings/{listing_id}/price-intelligence')
+def get_listing_price_intelligence(listing_id: str, marketplace: MarketplaceService = Depends(get_marketplace)) -> dict:
+    try:
+        return marketplace.get_listing_price_intelligence(listing_id).model_dump(mode='json')
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.post('/pricing/suggest')
+def suggest_price(payload: PricingSuggestionIn, marketplace: MarketplaceService = Depends(get_marketplace)) -> dict:
+    try:
+        return marketplace.suggest_price(payload).model_dump(mode='json')
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
 @router.post('/orders')
 def create_order(payload: OrderCreate, marketplace: MarketplaceService = Depends(get_marketplace)) -> dict:
     try:
@@ -388,8 +433,26 @@ def list_orders(store: Any = Depends(get_store)) -> dict:
 
 
 @router.get('/notifications')
-def list_notifications(store: Any = Depends(get_store)) -> dict:
-    return {'items': store.list_notifications()}
+def list_notifications(
+    role: str | None = Query(default=None),
+    recipient_id: str | None = Query(default=None),
+    unread_only: bool = Query(default=False),
+    store: Any = Depends(get_store),
+) -> dict:
+    return {'items': store.list_notifications(role=role, recipient_id=recipient_id, unread_only=unread_only)}
+
+
+@router.post('/notifications/{notification_id}/read')
+def mark_notification_read(notification_id: str, store: Any = Depends(get_store)) -> dict:
+    item = store.mark_notification_read(notification_id)
+    if item is None:
+        raise HTTPException(status_code=404, detail='Notification not found')
+    return {'ok': True, 'notification': item}
+
+
+@router.post('/notifications/read-all')
+def mark_all_notifications_read(payload: NotificationReadAllIn, store: Any = Depends(get_store)) -> dict:
+    return {'ok': True, 'count': store.mark_all_notifications_read(payload.role, payload.recipient_id)}
 
 
 @router.get('/sellers')

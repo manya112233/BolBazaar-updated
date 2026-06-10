@@ -71,6 +71,63 @@ const landingCopy = {
   },
 };
 
+const landingLocaleCopy = {
+  en: {
+    badge: 'Google Solution Challenge · WhatsApp-first agri-commerce',
+    title: "Turn a farmer's WhatsApp message into a live produce marketplace.",
+    body:
+      'BolBazaar helps farmers, FPOs, and local sellers create verified listings, manage orders, track khata, and pool fragmented buyer demand into bulk supply opportunities without installing a new app.',
+    ctaPrimary: 'See how it works',
+    ctaSecondary: 'Open dashboard',
+    login: 'Login',
+    navProblem: 'Problem',
+    navSolution: 'Solution',
+    navHow: 'How It Works',
+    navImpact: 'Impact',
+    navArchitecture: 'Architecture',
+    navDashboard: 'Dashboard',
+    proof: [
+      'No app download for sellers',
+      'Hindi/English voice-note support',
+      'AI verified listings',
+      'Khata and orders in one dashboard',
+    ],
+    metrics: [
+      { value: '<30 sec', label: 'Listing creation', body: 'Seller stock becomes structured inventory in under half a minute.' },
+      { value: '0', label: 'App downloads', body: 'Sellers continue on WhatsApp instead of learning a new app.' },
+      { value: '3', label: 'Input modes', body: 'Text, voice, and image all feed the same operating pipeline.' },
+      { value: '1', label: 'Unified dashboard', body: 'Orders, khata, verification, and insights live in one workspace.' },
+    ],
+  },
+  hi: {
+    badge: 'Google Solution Challenge · WhatsApp-first agri-commerce',
+    title: 'किसान के WhatsApp संदेश को लाइव produce marketplace में बदलें।',
+    body:
+      'BolBazaar farmers, FPOs, और local sellers को बिना नया app install किए verified listings, orders, khata, और pooled buyer demand opportunities manage करने देता है।',
+    ctaPrimary: 'कैसे काम करता है देखें',
+    ctaSecondary: 'डैशबोर्ड खोलें',
+    login: 'लॉगिन',
+    navProblem: 'समस्या',
+    navSolution: 'समाधान',
+    navHow: 'कैसे काम करता है',
+    navImpact: 'प्रभाव',
+    navArchitecture: 'आर्किटेक्चर',
+    navDashboard: 'डैशबोर्ड',
+    proof: [
+      'Sellers के लिए कोई app download नहीं',
+      'Hindi/English voice-note support',
+      'AI verified listings',
+      'Khata और orders एक dashboard में',
+    ],
+    metrics: [
+      { value: '<30 sec', label: 'Listing creation', body: 'Seller stock आधे मिनट से कम समय में structured inventory बन जाता है।' },
+      { value: '0', label: 'App downloads', body: 'Sellers WhatsApp पर ही रहते हैं, नए app की ज़रूरत नहीं।' },
+      { value: '3', label: 'Input modes', body: 'Text, voice, और image एक ही operating pipeline में जाते हैं।' },
+      { value: '1', label: 'Unified dashboard', body: 'Orders, khata, verification, और insights एक workspace में मिलते हैं।' },
+    ],
+  },
+} as const;
+
 const problemCards = [
   'Sellers lose time manually broadcasting stock every morning.',
   'Buyers have no trusted live view of local produce supply.',
@@ -141,7 +198,7 @@ export default function LandingPage({
 }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
-  const copy = landingCopy[language];
+  const copy = landingLocaleCopy[language];
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 12);

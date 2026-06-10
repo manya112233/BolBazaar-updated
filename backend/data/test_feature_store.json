@@ -1,0 +1,18 @@
+{
+  "listings": [],
+  "orders": [],
+  "ledger_entries": [],
+  "buyer_searches": [],
+  "notifications": [],
+  "insights": [],
+  "seller_profiles": [],
+  "seller_sessions": [],
+  "otp_requests": [],
+  "demand_alert_fingerprints": {},
+  "whatsapp_message_fingerprints": {},
+  "whatsapp_message_states": {},
+  "processed_whatsapp_message_ids": [],
+  "demand_requests": [],
+  "commit_pools": [],
+  "deliveries": []
+}

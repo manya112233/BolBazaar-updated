@@ -138,9 +138,9 @@ export default function BuyerOverview({
   const activityItems = useMemo(
     () =>
       notifications.slice().reverse().slice(0, 6).map((note) => ({
-        title: note.seller_id,
+        title: note.title || note.seller_id || 'Notification',
         body: note.text,
-        meta: note.order_id,
+        meta: note.order_id || note.category,
         tone: note.delivery_status === 'sent' ? 'success' as const : 'neutral' as const,
         badge: note.delivery_status,
       })),

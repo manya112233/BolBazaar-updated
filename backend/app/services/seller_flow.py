@@ -6,7 +6,7 @@ import re
 from datetime import datetime
 from typing import Any
 
-from app.schemas import DeliveryAdvanceRequestIn, LedgerCaptureMode, LedgerEntry, ProduceQualityAssessment, SellerDashboard, SellerProfile, SellerSession
+from app.schemas import DeliveryAdvanceRequestIn, LedgerCaptureMode, LedgerEntry, PricingSuggestionIn, ProduceQualityAssessment, SellerDashboard, SellerProfile, SellerSession
 from app.services.geo_service import GeoService
 from app.services.marketplace import MarketplaceService
 from app.services.whatsapp_service import WhatsAppService
@@ -276,6 +276,10 @@ class SellerFlowService:
         if routed_command is not None:
             return routed_command
 
+        price_command_product = self._extract_price_command_product(action)
+        if price_command_product:
+            return self._send_price_intelligence(profile, price_command_product)
+
         if self._has_ledger_signal(message_text):
             return self._record_ledger_entry(
                 profile=profile,
@@ -358,6 +362,48 @@ class SellerFlowService:
         normalized = value.strip().lower()
         normalized = re.sub(r'[^\w\s\u0900-\u097f:-]', ' ', normalized)
         return re.sub(r'\s+', ' ', normalized).strip()
+
+    def _extract_price_command_product(self, action: str) -> str | None:
+        normalized = self._normalize_text(action)
+        if not normalized:
+            return None
+        prefixes = ('price ', 'mandi ', 'bhav ', 'भाव ')
+        for prefix in prefixes:
+            if normalized.startswith(prefix):
+                product = normalized[len(prefix):].strip()
+                return product or None
+        return None
+
+    def _send_price_intelligence(self, profile: SellerProfile, product_query: str) -> dict[str, Any]:
+        try:
+            reference = self.marketplace.suggest_price(PricingSuggestionIn(
+                product_name=product_query,
+                pickup_location=profile.default_pickup_location,
+            ))
+        except Exception:
+            reference = None
+
+        if reference is None or reference.mandi_modal_price_per_kg is None:
+            body = (
+                f'{product_query.title()} का ताज़ा मंडी भाव अभी उपलब्ध नहीं है। बाद में फिर कोशिश करें।'
+                if self._is_hindi(profile)
+                else f'Latest mandi pricing for {product_query.title()} is unavailable right now. Please try again later.'
+            )
+            return self._send_text(profile, body, handled='seller_price_lookup')
+
+        if self._is_hindi(profile):
+            body = (
+                f'{reference.product_name} का मंडी modal भाव लगभग Rs {reference.mandi_modal_price_per_kg}/किलो है। '
+                f'सुझाई गई selling range Rs {reference.suggested_min_price_per_kg}-Rs {reference.suggested_max_price_per_kg}/किलो। '
+                f'{reference.explanation}'
+            )
+        else:
+            body = (
+                f'{reference.product_name} mandi modal is about Rs {reference.mandi_modal_price_per_kg}/kg. '
+                f'Suggested selling range is Rs {reference.suggested_min_price_per_kg}-Rs {reference.suggested_max_price_per_kg}/kg. '
+                f'{reference.explanation}'
+            )
+        return self._send_text(profile, body, handled='seller_price_lookup')
 
     def _matches_command(self, action: str, *, exact: tuple[str, ...] = (), phrases: tuple[str, ...] = ()) -> bool:
         normalized_action = self._normalize_text(action)

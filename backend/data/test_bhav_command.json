@@ -1,0 +1,39 @@
+{
+  "listings": [],
+  "orders": [],
+  "ledger_entries": [],
+  "buyer_searches": [],
+  "notifications": [],
+  "insights": [],
+  "seller_profiles": [
+    {
+      "seller_id": "919971497076",
+      "seller_name": "Ramesh",
+      "store_name": null,
+      "preferred_language": "hi",
+      "seller_type": null,
+      "default_pickup_location": "Nashik",
+      "latitude": null,
+      "longitude": null,
+      "place_id": null,
+      "registration_status": "active",
+      "verification_status": "unverified",
+      "verification_method": null,
+      "verification_number": null,
+      "verification_proof_url": null,
+      "verification_notes": null,
+      "source_channel": "whatsapp",
+      "created_at": "2026-06-10T19:16:25.422170",
+      "updated_at": "2026-06-10T19:16:25.422175"
+    }
+  ],
+  "seller_sessions": [],
+  "otp_requests": [],
+  "demand_alert_fingerprints": {},
+  "whatsapp_message_fingerprints": {},
+  "whatsapp_message_states": {},
+  "processed_whatsapp_message_ids": [],
+  "demand_requests": [],
+  "commit_pools": [],
+  "deliveries": []
+}
