@@ -77,6 +77,7 @@ export async function placeOrder(payload: {
   quantity_kg: number;
   pickup_time: string;
   phone?: string;
+  buyer_phone?: string;
   delivery_mode?: 'pickup' | 'delivery';
   delivery_address?: string;
 }): Promise<Order> {

@@ -116,6 +116,12 @@ export default function DeliveryBoard({ deliveries, onAdvance, role, language }:
                   <span className="info-value">{delivery.distance_km} km</span>
                 </div>
               ) : null}
+              {role === 'seller' && delivery.pickup_slot_label ? (
+                <div className="delivery-info-item">
+                  <span className="info-label">{language === 'hi' ? 'पिकअप समय' : 'Pickup'}</span>
+                  <span className="info-value">{delivery.pickup_slot_label}</span>
+                </div>
+              ) : null}
             </div>
             {nextStatus ? (
               <div className="delivery-advance-row">

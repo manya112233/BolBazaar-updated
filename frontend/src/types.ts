@@ -365,6 +365,13 @@ export type Delivery = {
   last_actor_id?: string | null;
   handover_confirmed_at?: string | null;
   eta?: string | null;
+  delivery_partner_id?: string | null;
+  delivery_partner_name?: string | null;
+  delivery_partner_phone?: string | null;
+  delivery_partner_vehicle?: string | null;
+  buyer_phone?: string | null;
+  pickup_scheduled_at?: string | null;
+  pickup_slot_label?: string | null;
   created_at: string;
   updated_at: string;
 };

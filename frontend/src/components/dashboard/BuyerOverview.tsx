@@ -225,7 +225,6 @@ export default function BuyerOverview({
           <p>{pageMeta.body}</p>
         </div>
         <div className="bb-page-chips">
-          <StatusBadge label="Buyer workspace" tone="info" />
           <StatusBadge label={loading ? 'Refreshing' : 'Live marketplace'} tone={loading ? 'warning' : 'success'} dot />
         </div>
       </section>
@@ -369,15 +368,6 @@ export default function BuyerOverview({
                     </div>
                   </div>
                 </div>
-                {insight ? (
-                  <div className="summary-box">
-                    <div>
-                      <span className="label">AI note</span>
-                      <strong>{insight.headline}</strong>
-                      <p className="bb-inline-note">{insight.message}</p>
-                    </div>
-                  </div>
-                ) : null}
               </div>
             ) : (
               <div className="bb-empty-state">

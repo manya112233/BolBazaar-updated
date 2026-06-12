@@ -145,32 +145,24 @@ function productVisualConfig(productName: string) {
 function productFallbackImage(productName: string): string {
   const config = productVisualConfig(productName);
   const label = config.label.replace(/[<>&"]/g, '');
-  const svg = `
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 520" role="img" aria-label="${label}">
-      <defs>
-        <radialGradient id="glow" cx="50%" cy="42%" r="62%">
-          <stop offset="0%" stop-color="#ffffff"/>
-          <stop offset="58%" stop-color="${config.bg}"/>
-          <stop offset="100%" stop-color="#dcebdd"/>
-        </radialGradient>
-        <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
-          <feDropShadow dx="0" dy="22" stdDeviation="18" flood-color="#123522" flood-opacity="0.18"/>
-        </filter>
-      </defs>
-      <rect width="640" height="520" fill="url(#glow)"/>
-      <ellipse cx="320" cy="418" rx="178" ry="35" fill="#123522" opacity="0.12"/>
-      <g filter="url(#shadow)">
-        <circle cx="260" cy="270" r="92" fill="${config.fill}" stroke="${config.stroke}" stroke-width="10"/>
-        <circle cx="374" cy="264" r="108" fill="${config.fill}" stroke="${config.stroke}" stroke-width="10"/>
-        <circle cx="325" cy="340" r="98" fill="${config.fill}" stroke="${config.stroke}" stroke-width="10"/>
-        <path d="M290 163c27 20 55 18 84 0-13 41-36 66-84 0Z" fill="#2d8a47"/>
-        <path d="M319 180c-4-35 6-63 31-84" fill="none" stroke="#2d8a47" stroke-width="14" stroke-linecap="round"/>
-        <circle cx="232" cy="234" r="18" fill="#fff" opacity="0.35"/>
-        <circle cx="338" cy="219" r="24" fill="#fff" opacity="0.28"/>
-      </g>
-      <text x="320" y="472" text-anchor="middle" font-family="Manrope, Arial, sans-serif" font-size="34" font-weight="800" fill="#123522">${label}</text>
-    </svg>
-  `;
+
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 480" role="img" aria-label="${label}">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="${config.bg}"/>
+      <stop offset="100%" stop-color="${config.fill}" stop-opacity="0.15"/>
+    </linearGradient>
+  </defs>
+  <rect width="640" height="480" fill="url(#bg)"/>
+  <g transform="translate(320,215)" stroke="${config.stroke}" stroke-width="2.8" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.45">
+    <path d="M0 42 C-32 24 -42 -8 -28 -38 C-14 -60 14 -60 28 -38 C42 -8 32 24 0 42Z"/>
+    <line x1="0" y1="42" x2="0" y2="-38"/>
+    <path d="M0 6 C-14 2 -24 -8 -20 -22"/>
+    <path d="M0 6 C14 2 24 -8 20 -22"/>
+  </g>
+  <text x="320" y="298" text-anchor="middle" font-family="Inter,-apple-system,Arial,sans-serif" font-size="21" font-weight="700" fill="${config.stroke}" opacity="0.52">${label}</text>
+</svg>`;
+
   return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
 }
 

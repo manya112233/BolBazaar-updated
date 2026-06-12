@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections import Counter
 from datetime import datetime, timedelta
 import hashlib
+import random
 
 import httpx
 
@@ -14,6 +15,30 @@ from app.services.market_price_service import MarketPriceService
 from app.services.speech_service import SpeechService
 from app.services.store import JsonStore
 from app.services.whatsapp_service import WhatsAppService
+
+
+_DELIVERY_PARTNERS = [
+    "Ramesh Kumar", "Suresh Yadav", "Anil Sharma", "Vijay Singh",
+    "Manoj Gupta", "Deepak Verma", "Rakesh Jha", "Sanjay Patil",
+    "Imran Khan", "Karthik R",
+]
+_PARTNER_VEHICLES = ["Bike", "Auto", "Tempo"]
+
+
+def assign_delivery_partner() -> dict:
+    state = random.choice(["KA", "MH", "DL", "RJ"])
+    return {
+        "delivery_partner_id": f"DP-{random.randint(1000, 9999)}",
+        "delivery_partner_name": random.choice(_DELIVERY_PARTNERS),
+        "delivery_partner_phone": f"+9198{random.randint(10000000, 99999999)}",
+        "delivery_partner_vehicle": f"{random.choice(_PARTNER_VEHICLES)} • {state}{random.randint(10, 99)}-{random.randint(1000, 9999)}",
+    }
+
+
+def compute_pickup_slot() -> dict:
+    base = (datetime.utcnow() + timedelta(days=1)).replace(hour=9, minute=0, second=0, microsecond=0)
+    label = base.strftime('%a, %d %b') + ', 9:00–11:00 AM'
+    return {"pickup_scheduled_at": base, "pickup_slot_label": label}
 
 
 class MarketplaceService:
@@ -1034,7 +1059,7 @@ class MarketplaceService:
             seller_name=listing.seller_name,
             product_name=listing.product_name,
             buyer_name=payload.buyer_name,
-            buyer_phone=payload.phone,
+            buyer_phone=payload.buyer_phone or payload.phone,
             buyer_type=payload.buyer_type,
             quantity_kg=payload.quantity_kg,
             pickup_time=payload.pickup_time,
@@ -1183,8 +1208,44 @@ class MarketplaceService:
                     delivery_fee=order.delivery_fee,
                     status='order_accepted',
                     current_actor_role='ops' if listing.quality_status == 'pending' else 'seller',
+                    buyer_phone=order.buyer_phone,
+                    **assign_delivery_partner(),
+                    **compute_pickup_slot(),
                 )
                 self.store.save_delivery(delivery)
+                seller_dp_body = (
+                    f"Delivery partner assigned for your {delivery.product_name} order.\n"
+                    f"Partner: {delivery.delivery_partner_name} ({delivery.delivery_partner_id})\n"
+                    f"Vehicle: {delivery.delivery_partner_vehicle}\n"
+                    f"Pickup scheduled: {delivery.pickup_slot_label}"
+                )
+                try:
+                    dp_wa_result = self.whatsapp.send_text_message(to=delivery.seller_id, body=seller_dp_body)
+                except Exception:
+                    dp_wa_result = {'sent': False}
+                self.notify_seller(
+                    recipient_id=delivery.seller_id,
+                    seller_id=delivery.seller_id,
+                    order_id=delivery.order_id,
+                    category='delivery',
+                    title='Delivery partner assigned',
+                    text=seller_dp_body,
+                    entity_type='delivery',
+                    entity_id=delivery.id,
+                    action_label='Track delivery',
+                    action_target='deliveries',
+                    channel='whatsapp',
+                    delivery_status=self.whatsapp.delivery_status(dp_wa_result),
+                )
+                if delivery.buyer_phone:
+                    buyer_dp_body = (
+                        f"A delivery partner ({delivery.delivery_partner_name}) has been "
+                        f"assigned to your {delivery.product_name} delivery."
+                    )
+                    try:
+                        self.whatsapp.send_text_message(to=delivery.buyer_phone, body=buyer_dp_body)
+                    except Exception:
+                        pass
             self.notify_buyer(
                 recipient_id=order.buyer_phone,
                 category='order',
@@ -1461,6 +1522,8 @@ class MarketplaceService:
             self.store.save_order(order)
             created_orders.append(order)
 
+            demand_req = self.store.get_demand_request(member.request_id)
+            pool_buyer_phone = demand_req.phone if demand_req else None
             delivery = Delivery(
                 order_id=order.id,
                 pool_id=pool.id,
@@ -1478,9 +1541,45 @@ class MarketplaceService:
                 delivery_fee=breakdown.total_delivery_fee,
                 status='order_accepted',
                 current_actor_role='ops' if listing.quality_status == 'pending' else 'seller',
+                buyer_phone=pool_buyer_phone,
+                **assign_delivery_partner(),
+                **compute_pickup_slot(),
             )
             self.store.save_delivery(delivery)
             created_deliveries.append(delivery)
+            seller_dp_body = (
+                f"Delivery partner assigned for your {delivery.product_name} order.\n"
+                f"Partner: {delivery.delivery_partner_name} ({delivery.delivery_partner_id})\n"
+                f"Vehicle: {delivery.delivery_partner_vehicle}\n"
+                f"Pickup scheduled: {delivery.pickup_slot_label}"
+            )
+            try:
+                dp_wa_result = self.whatsapp.send_text_message(to=delivery.seller_id, body=seller_dp_body)
+            except Exception:
+                dp_wa_result = {'sent': False}
+            self.notify_seller(
+                recipient_id=delivery.seller_id,
+                seller_id=delivery.seller_id,
+                order_id=delivery.order_id,
+                category='delivery',
+                title='Delivery partner assigned',
+                text=seller_dp_body,
+                entity_type='delivery',
+                entity_id=delivery.id,
+                action_label='Track delivery',
+                action_target='deliveries',
+                channel='whatsapp',
+                delivery_status=self.whatsapp.delivery_status(dp_wa_result),
+            )
+            if delivery.buyer_phone:
+                buyer_dp_body = (
+                    f"A delivery partner ({delivery.delivery_partner_name}) has been "
+                    f"assigned to your {delivery.product_name} delivery."
+                )
+                try:
+                    self.whatsapp.send_text_message(to=delivery.buyer_phone, body=buyer_dp_body)
+                except Exception:
+                    pass
             self.notify_buyer(
                 recipient_id=member.buyer_id,
                 category='demand',

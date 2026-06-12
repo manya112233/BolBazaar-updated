@@ -13,8 +13,9 @@
   gap: 20px;
   height: 100vh;
   padding: 20px 16px;
-  background: #f8fafc;
-  border-right: 1px solid var(--border);
+  background: rgba(248, 250, 252, 0.82);
+  backdrop-filter: blur(14px);
+  border-right: 1px solid rgba(255, 255, 255, 0.5);
   z-index: 20;
 }
 
@@ -225,9 +226,10 @@
   justify-content: space-between;
   gap: 16px;
   padding: 16px 24px;
-  border-bottom: 1px solid var(--border);
-  background: rgba(248, 250, 252, 0.94);
-  backdrop-filter: blur(16px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.5);
+  background: rgba(248, 250, 252, 0.82);
+  backdrop-filter: blur(18px);
+  box-shadow: 0 1px 0 rgba(15, 23, 42, 0.06);
 }
 
 .dashboard-topbar-leading,
@@ -391,10 +393,11 @@
 .dashboard-card,
 .kpi-card,
 .workspace-summary-card {
-  border: 1px solid var(--border);
-  border-radius: 18px;
-  background: #fff;
-  box-shadow: var(--shadow-card);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.72);
+  box-shadow: 0 14px 40px rgba(15, 23, 42, 0.08);
+  backdrop-filter: blur(18px);
 }
 
 .dashboard-card {
@@ -539,30 +542,16 @@
   background: currentColor;
 }
 
-.status-badge-success {
-  background: rgba(16, 185, 129, 0.12);
-  color: #047857;
+.status-badge {
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06), 0 4px 12px rgba(15, 23, 42, 0.04);
 }
 
-.status-badge-warning {
-  background: rgba(245, 158, 11, 0.12);
-  color: #b45309;
-}
-
-.status-badge-danger {
-  background: rgba(239, 68, 68, 0.12);
-  color: #b91c1c;
-}
-
-.status-badge-neutral {
-  background: rgba(148, 163, 184, 0.16);
-  color: #475569;
-}
-
-.status-badge-info {
-  background: rgba(59, 130, 246, 0.12);
-  color: #1d4ed8;
-}
+.status-badge-success { color: #047857; }
+.status-badge-warning { color: #b45309; }
+.status-badge-danger { color: #b91c1c; }
+.status-badge-neutral { color: #475569; }
+.status-badge-info { color: #1d4ed8; }
 
 .metric-inline-grid,
 .seller-profile-grid {
@@ -755,10 +744,12 @@
 .empty-state {
   display: grid;
   gap: 10px;
-  padding: 18px;
-  border: 1px dashed rgba(148, 163, 184, 0.42);
+  padding: 32px 24px;
+  border: 1px dashed rgba(15, 23, 42, 0.10);
   border-radius: 16px;
-  background: #f8fafc;
+  background: rgba(255, 255, 255, 0.5);
+  text-align: center;
+  place-items: center;
 }
 
 .empty-state-icon {

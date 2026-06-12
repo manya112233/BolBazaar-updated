@@ -585,7 +585,7 @@ export default function App() {
           defaultBuyerPhone={session.phone_number}
           onClose={() => setSelectedListing(null)}
           onSubmit={async (payload) => {
-            await placeOrder({ listing_id: selectedListing.id, ...payload });
+            await placeOrder({ listing_id: selectedListing.id, buyer_phone: session.phone_number, ...payload });
             setSelectedListing(null);
             await loadAll(activeSellerId);
           }}

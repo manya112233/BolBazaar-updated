@@ -2072,6 +2072,20 @@
       "expires_at": "2026-06-10T19:22:30.894333",
       "verified_at": "2026-06-10T19:17:35.674367",
       "failed_attempts": 0
+    },
+    {
+      "id": "otp_3a95e07739",
+      "role": "buyer",
+      "phone_number": "918287347923",
+      "otp_code_hash": "81da71cc3f64a695c35ca21fed0896c58a99fe8cd411557191eb3d5b473d5218",
+      "delivery_method": "demo_preview",
+      "delivery_status": "preview",
+      "seller_id": null,
+      "note": "Buyer OTP is running in demo preview mode until an SMS provider is connected.",
+      "created_at": "2026-06-11T11:08:37.744253",
+      "expires_at": "2026-06-11T11:13:37.743673",
+      "verified_at": "2026-06-11T11:08:45.328652",
+      "failed_attempts": 0
     }
   ],
   "demand_alert_fingerprints": {

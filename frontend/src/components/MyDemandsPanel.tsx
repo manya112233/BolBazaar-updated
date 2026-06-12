@@ -60,6 +60,19 @@ export default function MyDemandsPanel({ language, demands, deliveries, onConfir
               <span className="info-value">₹{delivery.delivery_fee.toFixed(0)}</span>
             </div>
           </div>
+          {delivery.delivery_partner_name ? (
+            <div className="delivery-partner-card">
+              <span className="info-label">{language === 'hi' ? 'डिलिवरी पार्टनर' : 'Delivery partner'}</span>
+              <div className="delivery-partner-row">
+                <strong>{delivery.delivery_partner_name}</strong>
+                {delivery.delivery_partner_id ? <span className="mini-pill neutral-pill">{delivery.delivery_partner_id}</span> : null}
+              </div>
+              <div className="delivery-partner-meta">
+                {delivery.delivery_partner_vehicle ? <span>{delivery.delivery_partner_vehicle}</span> : null}
+                {delivery.delivery_partner_phone ? <span>{delivery.delivery_partner_phone}</span> : null}
+              </div>
+            </div>
+          ) : null}
           {onConfirmDelivery && delivery.status === 'delivered' ? (
             <div className="action-row" style={{ marginTop: 12 }}>
               <button className="primary-button small" onClick={() => void onConfirmDelivery(delivery.id, false)}>

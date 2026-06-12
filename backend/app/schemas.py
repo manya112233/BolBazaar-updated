@@ -393,6 +393,7 @@ class OrderCreate(BaseModel):
     quantity_kg: float = Field(gt=0)
     pickup_time: str
     phone: str | None = None
+    buyer_phone: str | None = None
     delivery_mode: DeliveryMode = 'pickup'
     delivery_address: str | None = None
 
@@ -647,6 +648,13 @@ class Delivery(BaseModel):
     last_actor_id: str | None = None
     handover_confirmed_at: datetime | None = None
     eta: str | None = None
+    delivery_partner_id: str | None = None
+    delivery_partner_name: str | None = None
+    delivery_partner_phone: str | None = None
+    delivery_partner_vehicle: str | None = None
+    buyer_phone: str | None = None
+    pickup_scheduled_at: datetime | None = None
+    pickup_slot_label: str | None = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
