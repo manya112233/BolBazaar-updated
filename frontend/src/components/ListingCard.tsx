@@ -1,5 +1,33 @@
+import { useEffect, useState } from 'react';
 import type { Listing } from '../types';
 import type { AppLanguage } from '../App';
+
+const API_BASE = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000').replace(/\/$/, '');
+const GENERIC_PRODUCE_FALLBACK = `${API_BASE}/media/default-produce/generic-produce.jpg`;
+const GENERIC_VEGETABLES_FALLBACK = `${API_BASE}/media/default-produce/generic-vegetables.jpg`;
+const GENERIC_FRUITS_FALLBACK = `${API_BASE}/media/default-produce/generic-fruits.jpg`;
+const TOMATO_FALLBACK = `${API_BASE}/media/default-produce/tomato.jpg`;
+const POTATO_FALLBACK = `${API_BASE}/media/default-produce/potato.jpg`;
+
+const PRODUCT_IMAGE_FALLBACKS: Array<{ keywords: string[]; imageUrl: string }> = [
+  { keywords: ['tomato', 'tamatar'], imageUrl: TOMATO_FALLBACK },
+  { keywords: ['potato', 'aloo'], imageUrl: POTATO_FALLBACK },
+  { keywords: ['onion', 'pyaz'], imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/2/25/Onion_on_White.JPG' },
+  { keywords: ['carrot', 'gajar'], imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/0/05/CarrotDiversityLg.jpg' },
+  { keywords: ['cabbage', 'patta gobhi'], imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/6/6f/Cabbage_and_cross_section_on_white.jpg' },
+  { keywords: ['cauliflower', 'phool gobhi'], imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/a/aa/Cauliflower.JPG' },
+  { keywords: ['spinach', 'palak'], imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/0/01/Cropped_image_of_spinach_leaves.jpg' },
+  { keywords: ['leafy', 'greens', 'saag', 'methi', 'lettuce'], imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/0/01/Cropped_image_of_spinach_leaves.jpg' },
+  { keywords: ['banana', 'kela'], imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/8/8a/Banana-Single.jpg' },
+  { keywords: ['mango', 'aam'], imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/9/90/Hapus_Mango.jpg' },
+  { keywords: ['apple', 'seb'], imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/1/15/Red_Apple.jpg' },
+];
+
+const GENERIC_IMAGE_SUFFIXES = [
+  '/media/default-produce/generic-produce.jpg',
+  '/media/default-produce/generic-vegetables.jpg',
+  '/media/default-produce/generic-fruits.jpg',
+];
 
 const FALLBACK_COLORS: Record<string, { bg: string; fill: string; stroke: string; label: string }> = {
   tomato: { bg: '#fff0e8', fill: '#d9342b', stroke: '#8f1f1a', label: 'Tomato' },
@@ -41,21 +69,21 @@ const listingCopy = {
     kg: 'kg',
   },
   hi: {
-    whatsappListing: 'WhatsApp लिस्टिंग',
-    demoListing: 'डेमो लिस्टिंग',
-    geoVerified: 'लोकेशन सत्यापित',
-    aiPhotoChecked: 'AI फोटो जांची गई',
-    aiVisualFreshness: 'AI दृश्य ताजगी',
-    qualityNote: 'गुणवत्ता नोट',
-    available: 'उपलब्ध',
-    pickup: 'पिकअप',
-    seller: 'विक्रेता',
-    grade: 'ग्रेड',
-    standard: 'सामान्य',
-    placeOrder: 'ऑर्डर करें',
-    maps: 'Google Maps पर देखें',
-    currency: 'रु',
-    kg: 'किलो',
+    whatsappListing: 'WhatsApp à¤²à¤¿à¤¸à¥à¤Ÿà¤¿à¤‚à¤—',
+    demoListing: 'à¤¡à¥‡à¤®à¥‹ à¤²à¤¿à¤¸à¥à¤Ÿà¤¿à¤‚à¤—',
+    geoVerified: 'à¤²à¥‹à¤•à¥‡à¤¶à¤¨ à¤¸à¤¤à¥à¤¯à¤¾à¤ªà¤¿à¤¤',
+    aiPhotoChecked: 'AI à¤«à¥‹à¤Ÿà¥‹ à¤œà¤¾à¤‚à¤šà¥€ à¤—à¤ˆ',
+    aiVisualFreshness: 'AI à¤¦à¥ƒà¤¶à¥à¤¯ à¤¤à¤¾à¤œà¤—à¥€',
+    qualityNote: 'à¤—à¥à¤£à¤µà¤¤à¥à¤¤à¤¾ à¤¨à¥‹à¤Ÿ',
+    available: 'à¤‰à¤ªà¤²à¤¬à¥à¤§',
+    pickup: 'à¤ªà¤¿à¤•à¤…à¤ª',
+    seller: 'à¤µà¤¿à¤•à¥à¤°à¥‡à¤¤à¤¾',
+    grade: 'à¤—à¥à¤°à¥‡à¤¡',
+    standard: 'à¤¸à¤¾à¤®à¤¾à¤¨à¥à¤¯',
+    placeOrder: 'à¤‘à¤°à¥à¤¡à¤° à¤•à¤°à¥‡à¤‚',
+    maps: 'Google Maps à¤ªà¤° à¤¦à¥‡à¤–à¥‡à¤‚',
+    currency: 'à¤°à¥',
+    kg: 'à¤•à¤¿à¤²à¥‹',
   },
 };
 
@@ -66,32 +94,32 @@ const gradeLabels: Record<AppLanguage, Record<string, string>> = {
     economy: 'Economy',
   },
   hi: {
-    premium: 'प्रीमियम',
-    standard: 'सामान्य',
-    economy: 'इकॉनमी',
+    premium: 'à¤ªà¥à¤°à¥€à¤®à¤¿à¤¯à¤®',
+    standard: 'à¤¸à¤¾à¤®à¤¾à¤¨à¥à¤¯',
+    economy: 'à¤‡à¤•à¥‰à¤¨à¤®à¥€',
   },
 };
 
 const productLabels: Record<string, string> = {
-  tomato: 'टमाटर',
-  potato: 'आलू',
-  onion: 'प्याज',
-  carrot: 'गाजर',
-  cabbage: 'पत्ता गोभी',
-  cauliflower: 'फूल गोभी',
-  spinach: 'पालक',
-  greens: 'हरी सब्जियां',
-  banana: 'केला',
-  mango: 'आम',
-  apple: 'सेब',
+  tomato: 'à¤Ÿà¤®à¤¾à¤Ÿà¤°',
+  potato: 'à¤†à¤²à¥‚',
+  onion: 'à¤ªà¥à¤¯à¤¾à¤œ',
+  carrot: 'à¤—à¤¾à¤œà¤°',
+  cabbage: 'à¤ªà¤¤à¥à¤¤à¤¾ à¤—à¥‹à¤­à¥€',
+  cauliflower: 'à¤«à¥‚à¤² à¤—à¥‹à¤­à¥€',
+  spinach: 'à¤ªà¤¾à¤²à¤•',
+  greens: 'à¤¹à¤°à¥€ à¤¸à¤¬à¥à¤œà¤¿à¤¯à¤¾à¤‚',
+  banana: 'à¤•à¥‡à¤²à¤¾',
+  mango: 'à¤†à¤®',
+  apple: 'à¤¸à¥‡à¤¬',
 };
 
 const signalLabels: Record<string, string> = {
-  'consistent color': 'एकसमान रंग',
-  'firm appearance': 'मजबूत दिखावट',
-  'minimal blemishes': 'कम दाग',
-  'bright color': 'चमकदार रंग',
-  'minimal visible blemishes': 'कम दिखाई देने वाले दाग',
+  'consistent color': 'à¤à¤•à¤¸à¤®à¤¾à¤¨ à¤°à¤‚à¤—',
+  'firm appearance': 'à¤®à¤œà¤¬à¥‚à¤¤ à¤¦à¤¿à¤–à¤¾à¤µà¤Ÿ',
+  'minimal blemishes': 'à¤•à¤® à¤¦à¤¾à¤—',
+  'bright color': 'à¤šà¤®à¤•à¤¦à¤¾à¤° à¤°à¤‚à¤—',
+  'minimal visible blemishes': 'à¤•à¤® à¤¦à¤¿à¤–à¤¾à¤ˆ à¤¦à¥‡à¤¨à¥‡ à¤µà¤¾à¤²à¥‡ à¤¦à¤¾à¤—',
 };
 
 function localizeProductName(productName: string, language: AppLanguage): string {
@@ -123,7 +151,7 @@ function localizeSignal(signal: string, language: AppLanguage): string {
 
 function listingDescription(listing: Listing, productName: string, language: AppLanguage): string | null | undefined {
   if (language === 'en') return listing.description;
-  return `${productName} ${listing.seller_name} से, उसी दिन पिकअप के लिए ${listing.pickup_location} पर उपलब्ध है।`;
+  return `${productName} ${listing.seller_name} à¤¸à¥‡, à¤‰à¤¸à¥€ à¤¦à¤¿à¤¨ à¤ªà¤¿à¤•à¤…à¤ª à¤•à¥‡ à¤²à¤¿à¤ ${listing.pickup_location} à¤ªà¤° à¤‰à¤ªà¤²à¤¬à¥à¤§ à¤¹à¥ˆà¥¤`;
 }
 
 function qualitySummary(listing: Listing, productName: string, language: AppLanguage): string | null | undefined {
@@ -131,9 +159,42 @@ function qualitySummary(listing: Listing, productName: string, language: AppLang
   if (!listing.quality_summary) return listing.quality_summary;
   const signals = listing.quality_signals.slice(0, 3).map((signal) => localizeSignal(signal, language));
   if (signals.length > 0) {
-    return `${productName} की गुणवत्ता अच्छी दिख रही है: ${signals.join(', ')}।`;
+    return `${productName} à¤•à¥€ à¤—à¥à¤£à¤µà¤¤à¥à¤¤à¤¾ à¤…à¤šà¥à¤›à¥€ à¤¦à¤¿à¤– à¤°à¤¹à¥€ à¤¹à¥ˆ: ${signals.join(', ')}à¥¤`;
   }
-  return `${productName} की AI फोटो जांच पूरी हो गई है।`;
+  return `${productName} à¤•à¥€ AI à¤«à¥‹à¤Ÿà¥‹ à¤œà¤¾à¤‚à¤š à¤ªà¥‚à¤°à¥€ à¤¹à¥‹ à¤—à¤ˆ à¤¹à¥ˆà¥¤`;
+}
+
+function mapUrl(listing: Listing): string | null {
+  if (listing.latitude != null && listing.longitude != null) {
+    return `https://www.google.com/maps/search/?api=1&query=${listing.latitude},${listing.longitude}`;
+  }
+  if (listing.pickup_location) {
+    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(listing.pickup_location)}`;
+  }
+  return null;
+}
+
+function resolveListingImage(listing: Listing): string {
+  const rawImageUrl = listing.image_url?.trim();
+  const normalizedProduct = listing.product_name.toLowerCase();
+  const matchedProductImage = PRODUCT_IMAGE_FALLBACKS.find(({ keywords }) =>
+    keywords.some((keyword) => normalizedProduct.includes(keyword))
+  )?.imageUrl;
+
+  const isGenericCatalogImage = !!rawImageUrl && GENERIC_IMAGE_SUFFIXES.some((suffix) => rawImageUrl.endsWith(suffix));
+  if (rawImageUrl && !isGenericCatalogImage) {
+    return rawImageUrl;
+  }
+  if (matchedProductImage) {
+    return matchedProductImage;
+  }
+  if (listing.category === 'vegetables') {
+    return GENERIC_VEGETABLES_FALLBACK;
+  }
+  if (listing.category === 'fruits') {
+    return GENERIC_FRUITS_FALLBACK;
+  }
+  return GENERIC_PRODUCE_FALLBACK;
 }
 
 function productVisualConfig(productName: string) {
@@ -160,20 +221,10 @@ function productFallbackImage(productName: string): string {
     <path d="M0 6 C-14 2 -24 -8 -20 -22"/>
     <path d="M0 6 C14 2 24 -8 20 -22"/>
   </g>
-  <text x="320" y="298" text-anchor="middle" font-family="Inter,-apple-system,Arial,sans-serif" font-size="21" font-weight="700" fill="${config.stroke}" opacity="0.52">${label}</text>
+  <text x="320" y="298" text-anchor="middle" font-family="Georgia, serif" font-size="21" font-weight="700" fill="${config.stroke}" opacity="0.52">${label}</text>
 </svg>`;
 
   return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
-}
-
-function mapUrl(listing: Listing): string | null {
-  if (listing.latitude != null && listing.longitude != null) {
-    return `https://www.google.com/maps/search/?api=1&query=${listing.latitude},${listing.longitude}`;
-  }
-  if (listing.pickup_location) {
-    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(listing.pickup_location)}`;
-  }
-  return null;
 }
 
 export default function ListingCard({
@@ -187,24 +238,27 @@ export default function ListingCard({
 }) {
   const mapsHref = mapUrl(listing);
   const isAiVisualGrade = listing.quality_assessment_source === 'ai_visual';
-  const fallbackImage = productFallbackImage(listing.product_name);
   const copy = listingCopy[language];
   const productName = localizeProductName(listing.product_name, language);
   const description = listingDescription(listing, productName, language);
   const visibleQualitySummary = qualitySummary(listing, productName, language);
   const orderDisabled = listing.quality_status === 'rejected';
+  const resolvedImage = resolveListingImage(listing);
+  const fallbackImage = productFallbackImage(listing.product_name);
+  const [imageSrc, setImageSrc] = useState(resolvedImage);
+  useEffect(() => {
+    setImageSrc(resolvedImage);
+  }, [resolvedImage]);
 
   return (
     <article className="card listing-card">
       <div className="listing-image-wrap">
         <img
-          src={listing.image_url || fallbackImage}
+          src={imageSrc}
           alt={productName}
           className="listing-image"
-          onError={(event) => {
-            if (event.currentTarget.src !== fallbackImage) {
-              event.currentTarget.src = fallbackImage;
-            }
+          onError={() => {
+            setImageSrc((current) => current === fallbackImage ? current : fallbackImage);
           }}
         />
         <span className="badge">{isAiVisualGrade ? copy.aiPhotoChecked : listing.freshness_label}</span>

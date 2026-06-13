@@ -6,7 +6,7 @@ from fastapi.testclient import TestClient
 
 from app.dependencies import get_marketplace, get_store
 from app.main import app
-from app.schemas import LedgerEntry, Listing, Order, ProduceQualityAssessment, SellerProfile, SellerSession
+from app.schemas import LedgerEntry, Listing, MarketPriceReference, Order, ProduceQualityAssessment, SellerDashboard, SellerProfile, SellerSession
 from app.services.extraction import ExtractionService
 from app.services.marketplace import MarketplaceService
 from app.services.seller_flow import MENU_ACTION_ORDERS, MENU_ACTION_VERIFICATION, SellerFlowService
@@ -78,6 +78,17 @@ class StubMarketplace:
 
     def build_seller_dashboard(self, seller_id: str):  # pragma: no cover - not used in these tests
         return None
+
+    def suggest_price(self, payload: Any) -> MarketPriceReference:
+        return MarketPriceReference(
+            product_name=str(payload.product_name).title(),
+            normalized_commodity=str(payload.product_name).lower(),
+            mandi_modal_price_per_kg=28.0,
+            suggested_price_per_kg=28.7,
+            suggested_min_price_per_kg=27.16,
+            suggested_max_price_per_kg=30.24,
+            explanation='Recent mandi reference available.',
+        )
 
 
 class RecordingWhatsApp:
@@ -198,6 +209,32 @@ class OrderResponseMarketplace(StubMarketplace):
         assert order is not None
         order.status = 'accepted' if decision == 'accept' else 'rejected'
         return self.store.save_order(order)
+
+
+class ListingsDashboardMarketplace(StubMarketplace):
+    def build_seller_dashboard(self, seller_id: str) -> SellerDashboard:
+        return SellerDashboard(
+            seller_id=seller_id,
+            seller_name='Manya',
+            store_name='Manya Store',
+            preferred_language='en',
+            recent_listings=[
+                Listing(
+                    id='lst_live_1',
+                    seller_id=seller_id,
+                    seller_name='Manya',
+                    product_name='Tomato',
+                    category='vegetables',
+                    quantity_kg=30,
+                    available_kg=30,
+                    price_per_kg=20,
+                    pickup_location='Gulshan Vivante',
+                    quality_grade='premium',
+                    quality_status='approved',
+                    verified_by_bolbazaar=True,
+                )
+            ],
+        )
 
 
 class ListingSlotMarketplace(StubMarketplace):
@@ -409,7 +446,7 @@ def test_stale_language_session_recovers_verification_number_step() -> None:
     assert 'photo or PDF screenshot' in whatsapp.text_messages[-1]['body']
 
 
-def test_partial_listing_with_product_and_quantity_asks_for_price_then_creates_listing() -> None:
+def test_partial_listing_with_product_and_quantity_asks_for_price_then_requires_review() -> None:
     store = InMemorySellerStore()
     store.profile.preferred_language = 'en'  # type: ignore[assignment]
     store.save_seller_session(SellerSession(seller_id='919971497076', state='awaiting_listing_message'))
@@ -435,6 +472,22 @@ def test_partial_listing_with_product_and_quantity_asks_for_price_then_creates_l
         profile_name='Manya',
         message_text='30',
         image_url=None,
+    )
+
+    assert result == {'ok': True, 'handled': 'seller_listing_review'}
+    assert store.session is not None
+    assert store.session.state == 'awaiting_listing_confirmation'
+    assert store.session.draft_message == '40 kilo baingan 30 rupees kilo'
+    assert 'Make it live or edit it?' in whatsapp.button_messages[-1]['body']
+    assert 'Mandi reference: Rs 28.0/kg' in whatsapp.button_messages[-1]['body']
+    assert 'Suggested range: Rs 27.16-Rs 30.24/kg' in whatsapp.button_messages[-1]['body']
+
+    result = flow.handle_message(
+        seller_id='919971497076',
+        profile_name='Manya',
+        message_text='Make live',
+        image_url=None,
+        interaction_id='listing_confirm_live',
     )
 
     assert result['ok'] is True
@@ -464,6 +517,7 @@ def test_voice_listing_requires_review_before_going_live() -> None:
     assert store.session.state == 'awaiting_listing_confirmation'
     assert store.session.draft_capture_mode == 'voice_note'
     assert 'Price: Rs 1/kg' in whatsapp.button_messages[-1]['body']
+    assert 'Mandi reference: Rs 28.0/kg' in whatsapp.button_messages[-1]['body']
     assert [button['id'] for button in whatsapp.button_messages[-1]['buttons']] == [
         'listing_confirm_live',
         'listing_edit',
@@ -601,6 +655,21 @@ def test_image_only_listing_prompt_preserves_visual_grade_until_listing_details_
         profile_name='Manya',
         message_text='20 kilo 30 rupees kilo',
         image_url=None,
+    )
+
+    assert result == {'ok': True, 'handled': 'seller_listing_review'}
+    assert store.session is not None
+    assert store.session.state == 'awaiting_listing_confirmation'
+    assert store.session.draft_message == 'Tomato 20 kilo 30 rupees kilo'
+    assert 'Product: Tomato' in whatsapp.button_messages[-1]['body']
+    assert 'Mandi reference: Rs 28.0/kg' in whatsapp.button_messages[-1]['body']
+
+    result = flow.handle_message(
+        seller_id='919971497076',
+        profile_name='Manya',
+        message_text='Make live',
+        image_url=None,
+        interaction_id='listing_confirm_live',
     )
 
     assert result['ok'] is True
@@ -855,6 +924,28 @@ def test_orders_menu_shows_recent_orders() -> None:
             'description': '20 kg Tomato, FreshBite Restaurant, pickup Today 5 PM',
         },
     ]
+
+
+def test_listings_menu_shows_live_listings_without_crashing() -> None:
+    store = InMemorySellerStore()
+    store.profile.preferred_language = 'en'  # type: ignore[assignment]
+    marketplace = ListingsDashboardMarketplace()
+    whatsapp = RecordingWhatsApp()
+
+    flow = SellerFlowService(store=store, marketplace=marketplace, whatsapp=whatsapp)
+    result = flow.handle_message(
+        seller_id='919971497076',
+        profile_name='Manya',
+        message_text='LISTINGS',
+        image_url=None,
+    )
+
+    assert result == {'ok': True, 'handled': 'seller_listings'}
+    assert whatsapp.text_messages[-1]['body'] == (
+        'Your live listings:\n'
+        '- 1. Tomato, 30.0 kg at Rs 20.0/kg, pickup Gulshan Vivante, '
+        'quality Approved, Grade premium, BolBazaar Verified'
+    )
 
 
 def test_seller_type_update_returns_to_menu() -> None:
@@ -1388,12 +1479,8 @@ def test_whatsapp_webhook_applies_visual_grade_to_image_listing(tmp_path: Path, 
 
         assert response.status_code == 200
         assert response.json()['ok'] is True
-        assert response.json()['handled'] == 'listing_created'
-        assert response.json()['listing']['quality_assessment_source'] == 'ai_visual'
-        assert response.json()['listing']['quality_grade'] == 'premium'
-        assert response.json()['listing']['quality_score'] == 92
-        assert marketplace.last_quality_assessment is not None
-        assert marketplace.last_quality_assessment.quality_grade == 'premium'
+        assert response.json()['handled'] == 'seller_listing_review'
+        assert marketplace.last_quality_assessment is None
     finally:
         app.dependency_overrides.clear()
 

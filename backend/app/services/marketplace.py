@@ -8,10 +8,12 @@ import random
 import httpx
 
 from app.config import get_settings
-from app.schemas import BuyerDemandEvent, BuyerDemandSearchIn, BuyerDemandSearchResponse, BuyerDeliveryConfirmIn, CommitDemandPool, Delivery, DeliveryAdvanceRequestIn, DeliveryEstimateResponse, DemandPoolOpportunity, DemandRequest, DemandRequestCreate, LedgerCaptureMode, LedgerEntry, LedgerPaymentCreate, LedgerSummary, Listing, ListingCreate, ListingQualityUpdateIn, MarketPriceReference, NotificationRecord, NotificationRecipientRole, OpsDashboardResponse, OpsMetricSnapshot, Order, OrderCreate, PoolCommitIn, PoolMember, PricingSuggestionIn, ProduceQualityAssessment, SellerDashboard, SellerLedgerView, SellerNotification, SellerProfile, SourceChannel
+from app.schemas import BuyerDemandEvent, BuyerDemandSearchIn, BuyerDemandSearchResponse, BuyerDeliveryConfirmIn, CommitDemandPool, Delivery, DeliveryAdvanceRequestIn, DeliveryEstimateResponse, DeliveryPartner, DemandPoolOpportunity, DemandRequest, DemandRequestCreate, LedgerCaptureMode, LedgerEntry, LedgerPaymentCreate, LedgerSummary, Listing, ListingCreate, ListingQualityUpdateIn, MarketPriceReference, NotificationRecord, NotificationRecipientRole, OpsDashboardResponse, OpsMetricSnapshot, Order, OrderCreate, PoolCommitIn, PoolMember, PricingSuggestionIn, ProduceQualityAssessment, SellerDashboard, SellerLedgerView, SellerNotification, SellerProfile, SourceChannel
+from app.services.delivery_partners import seeded_delivery_partners
 from app.services.extraction import ExtractionService
 from app.services.geo_service import GeoService
 from app.services.market_price_service import MarketPriceService
+from app.services.produce_catalog import resolve_catalog_image
 from app.services.speech_service import SpeechService
 from app.services.store import JsonStore
 from app.services.whatsapp_service import WhatsAppService
@@ -50,11 +52,201 @@ class MarketplaceService:
         self.geo = GeoService()
         self.market_price = MarketPriceService()
         self.whatsapp = WhatsAppService()
+        seed_partners = getattr(self.store, 'seed_delivery_partners_if_missing', None)
+        if callable(seed_partners):
+            seed_partners()
 
     def _public_image_url(self, image_url: str | None) -> str | None:
         if image_url and image_url.startswith(('http://', 'https://')):
             return image_url
         return None
+
+    def _catalog_image_url(self, image_url: str) -> str:
+        if image_url.startswith('/'):
+            return f'{self.settings.api_public_base_url.rstrip("/")}{image_url}'
+        return image_url
+
+    def _resolve_listing_image(
+        self,
+        *,
+        seller_image_url: str | None,
+        product_name: str,
+        category: str,
+    ) -> tuple[str, str]:
+        if seller_image_url:
+            return seller_image_url, 'seller_upload'
+        catalog_match = resolve_catalog_image(product_name, category)
+        return self._catalog_image_url(catalog_match.image_url), catalog_match.image_source
+
+    def get_buyer_notification_recipient(self, delivery: Delivery | None = None, order: Order | None = None) -> str | None:
+        if delivery is not None:
+            return delivery.buyer_id or delivery.buyer_phone
+        if order is not None:
+            return order.buyer_phone
+        return None
+
+    def list_delivery_partners(self) -> list[DeliveryPartner]:
+        partners = getattr(self.store, 'list_delivery_partners', lambda: seeded_delivery_partners())()
+        if not partners:
+            seed_partners = getattr(self.store, 'seed_delivery_partners_if_missing', None)
+            if callable(seed_partners):
+                partners = seed_partners()
+            else:
+                partners = seeded_delivery_partners()
+        return sorted(partners, key=lambda item: item.id)
+
+    def _format_delivery_partner_vehicle(self, partner: DeliveryPartner) -> str:
+        return f'{partner.vehicle_type} - {partner.vehicle_number}'
+
+    def _active_delivery_count_for_partner(self, partner_id: str) -> int:
+        active_statuses = {'order_accepted', 'quality_check_pending', 'quality_approved', 'packed', 'handover_pending', 'picked_up', 'in_transit', 'delivered'}
+        return sum(
+            1
+            for delivery in self.store.list_deliveries()
+            if delivery.delivery_partner_id == partner_id and self._canonical_delivery_status(delivery.status) in active_statuses
+        )
+
+    def _assign_delivery_fields(self, delivery: Delivery, partner: DeliveryPartner, assigned_by: str) -> Delivery:
+        delivery.delivery_partner_id = partner.id
+        delivery.delivery_partner_name = partner.name
+        delivery.delivery_partner_phone = partner.phone
+        delivery.delivery_partner_vehicle = self._format_delivery_partner_vehicle(partner)
+        delivery.partner_assigned_at = datetime.utcnow()
+        delivery.partner_assigned_by = assigned_by
+        delivery.assignment_status = 'assigned'
+        return delivery
+
+    def _save_assigned_partner(self, partner: DeliveryPartner, delivery_id: str) -> DeliveryPartner:
+        partner.status = 'assigned'
+        partner.current_delivery_id = delivery_id
+        partner.updated_at = datetime.utcnow()
+        save_partner = getattr(self.store, 'save_delivery_partner', None)
+        if callable(save_partner):
+            save_partner(partner)
+        return partner
+
+    def release_delivery_partner(self, delivery: Delivery) -> None:
+        partner_id = delivery.delivery_partner_id
+        if not partner_id:
+            return
+        get_partner = getattr(self.store, 'get_delivery_partner', None)
+        save_partner = getattr(self.store, 'save_delivery_partner', None)
+        if not callable(get_partner) or not callable(save_partner):
+            return
+        partner = get_partner(partner_id)
+        if partner is None:
+            return
+        active_other = [
+            item for item in self.store.list_deliveries()
+            if item.id != delivery.id
+            and item.delivery_partner_id == partner_id
+            and self._canonical_delivery_status(item.status) not in {'buyer_confirmed', 'settled', 'cancelled'}
+        ]
+        partner.current_delivery_id = active_other[0].id if active_other else None
+        partner.status = 'assigned' if active_other else 'available'
+        partner.updated_at = datetime.utcnow()
+        save_partner(partner)
+
+    def _delivery_partner_notification_text(self, delivery: Delivery, *, for_buyer: bool) -> str:
+        intro = (
+            f'{delivery.delivery_partner_name} is handling your delivery'
+            if for_buyer
+            else f'{delivery.delivery_partner_name} (Partner ID {delivery.delivery_partner_id}) has been assigned to collect your {delivery.quantity_kg:g} kg {delivery.product_name} order.'
+        )
+        lines = [
+            intro,
+            f'Partner ID: {delivery.delivery_partner_id}' if for_buyer else None,
+            f'Vehicle: {delivery.delivery_partner_vehicle}' if delivery.delivery_partner_vehicle else None,
+            f'Contact: {delivery.delivery_partner_phone}' if delivery.delivery_partner_phone else None,
+            f'Pickup: {delivery.pickup_slot_label}' if delivery.pickup_slot_label else None,
+        ]
+        return '\n'.join(line for line in lines if line)
+
+    def _notify_delivery_partner_assignment(self, delivery: Delivery, *, reassigned: bool = False) -> None:
+        seller_body = self._delivery_partner_notification_text(delivery, for_buyer=False)
+        buyer_body = self._delivery_partner_notification_text(delivery, for_buyer=True)
+        seller_title = 'Delivery partner reassigned' if reassigned else 'Delivery partner assigned'
+        buyer_title = f'{delivery.delivery_partner_name} is handling your delivery' if not reassigned else 'Delivery partner reassigned'
+
+        try:
+            seller_result = self.whatsapp.send_text_message(to=delivery.seller_id, body=seller_body)
+        except Exception:
+            seller_result = {'sent': False}
+        self.notify_seller(
+            recipient_id=delivery.seller_id,
+            seller_id=delivery.seller_id,
+            order_id=delivery.order_id,
+            category='delivery',
+            title=seller_title,
+            text=seller_body,
+            entity_type='delivery',
+            entity_id=delivery.id,
+            action_label='Track delivery',
+            action_target='deliveries',
+            channel='whatsapp',
+            delivery_status=self.whatsapp.delivery_status(seller_result),
+        )
+        buyer_recipient = self.get_buyer_notification_recipient(delivery=delivery)
+        self.notify_buyer(
+            recipient_id=buyer_recipient,
+            category='delivery',
+            title=buyer_title,
+            text=buyer_body,
+            entity_type='delivery',
+            entity_id=delivery.id,
+            action_label='Track delivery',
+            action_target='deliveries',
+            seller_id=delivery.seller_id,
+            order_id=delivery.order_id,
+        )
+        if delivery.buyer_phone:
+            try:
+                self.whatsapp.send_text_message(to=delivery.buyer_phone, body=buyer_body)
+            except Exception:
+                pass
+
+    def assign_delivery_partner_from_ops(
+        self,
+        delivery: Delivery,
+        *,
+        partner_id: str | None = None,
+        assigned_by: str = 'ops-auto-dispatch',
+    ) -> Delivery:
+        if delivery.delivery_partner_id and delivery.assignment_status == 'assigned':
+            if partner_id is None or delivery.delivery_partner_id == partner_id:
+                return delivery
+
+        partners = self.list_delivery_partners()
+        if not partners:
+            raise ValueError('No delivery partners available')
+
+        selected: DeliveryPartner | None = None
+        if partner_id is not None:
+            selected = next((partner for partner in partners if partner.id == partner_id), None)
+            if selected is None or not selected.active:
+                raise ValueError('Selected delivery partner is unavailable')
+        else:
+            available = [partner for partner in partners if partner.active and partner.status == 'available']
+            if available:
+                selected = random.choice(available)
+            else:
+                active = [partner for partner in partners if partner.active]
+                if not active:
+                    raise ValueError('No active delivery partners available')
+                selected = min(active, key=lambda partner: (self._active_delivery_count_for_partner(partner.id), partner.id))
+
+        if selected is None:
+            raise ValueError('Delivery partner selection failed')
+
+        if delivery.delivery_partner_id and delivery.delivery_partner_id != selected.id:
+            self.release_delivery_partner(delivery)
+
+        delivery = self._assign_delivery_fields(delivery, selected, assigned_by)
+        delivery.updated_at = datetime.utcnow()
+        self.store.save_delivery(delivery)
+        self._save_assigned_partner(selected, delivery.id)
+        self._notify_delivery_partner_assignment(delivery, reassigned=assigned_by != 'ops-auto-dispatch')
+        return delivery
 
     def _price_intelligence_for_listing(
         self,
@@ -256,21 +448,28 @@ class MarketplaceService:
         image_mime_type: str | None = None,
         quality_assessment: ProduceQualityAssessment | None = None,
     ) -> Listing:
-        public_image_url = self.listing_image_url(image_url, image_bytes, image_mime_type)
-        effective_quality_assessment = quality_assessment or self.assess_produce_image(
-            image_bytes=image_bytes,
-            image_mime_type=image_mime_type,
-            image_url=public_image_url,
-        )
+        seller_image_url = self.listing_image_url(image_url, image_bytes, image_mime_type)
+        effective_quality_assessment = quality_assessment
+        if seller_image_url:
+            effective_quality_assessment = effective_quality_assessment or self.assess_produce_image(
+                image_bytes=image_bytes,
+                image_mime_type=image_mime_type,
+                image_url=seller_image_url,
+            )
 
         draft: ListingCreate = self.extractor.extract_listing(
             message=message_text,
             seller_id=seller_id,
             seller_name=seller_name,
-            image_url=public_image_url,
+            image_url=seller_image_url,
             source_channel=source_channel,
             default_pickup_location=default_pickup_location,
             quality_assessment=effective_quality_assessment,
+        )
+        resolved_image_url, image_source = self._resolve_listing_image(
+            seller_image_url=seller_image_url,
+            product_name=draft.product_name,
+            category=draft.category,
         )
 
         geocoded = self.geo.geocode(draft.pickup_location)
@@ -302,12 +501,13 @@ class MarketplaceService:
             ),
             quality_notes=(
                 f'AI preliminary assessment: {draft.quality_summary}'
-                if draft.quality_assessment_source == 'ai_visual' and draft.quality_summary
+                if seller_image_url and draft.quality_assessment_source == 'ai_visual' and draft.quality_summary
                 else None
             ),
-            quality_proof_images=[str(draft.image_url)] if draft.image_url else [],
+            quality_proof_images=[seller_image_url] if seller_image_url else [],
             verified_by_bolbazaar=False,
-            image_url=draft.image_url,
+            image_url=resolved_image_url,
+            image_source=image_source,  # type: ignore[arg-type]
             description=draft.description,
             tags=draft.tags,
             latitude=draft.latitude,
@@ -320,7 +520,7 @@ class MarketplaceService:
             price_intelligence_updated_at=draft.price_intelligence_updated_at,
             source_channel=draft.source_channel,
             raw_message=draft.raw_message,
-            freshness_label='AI photo checked' if draft.quality_assessment_source == 'ai_visual' else 'Fresh today',
+            freshness_label='AI photo checked' if seller_image_url and draft.quality_assessment_source == 'ai_visual' else 'Fresh today',
         )
         price_reference = self._price_intelligence_for_listing(
             product_name=listing.product_name,
@@ -1142,7 +1342,7 @@ class MarketplaceService:
             audio_base64=audio_base64,
         )
         self.notify_buyer(
-            recipient_id=payload.phone,
+            recipient_id=payload.buyer_phone or payload.phone,
             category='order',
             title='Order placed',
             text=(
@@ -1209,45 +1409,12 @@ class MarketplaceService:
                     status='order_accepted',
                     current_actor_role='ops' if listing.quality_status == 'pending' else 'seller',
                     buyer_phone=order.buyer_phone,
-                    **assign_delivery_partner(),
                     **compute_pickup_slot(),
                 )
                 self.store.save_delivery(delivery)
-                seller_dp_body = (
-                    f"Delivery partner assigned for your {delivery.product_name} order.\n"
-                    f"Partner: {delivery.delivery_partner_name} ({delivery.delivery_partner_id})\n"
-                    f"Vehicle: {delivery.delivery_partner_vehicle}\n"
-                    f"Pickup scheduled: {delivery.pickup_slot_label}"
-                )
-                try:
-                    dp_wa_result = self.whatsapp.send_text_message(to=delivery.seller_id, body=seller_dp_body)
-                except Exception:
-                    dp_wa_result = {'sent': False}
-                self.notify_seller(
-                    recipient_id=delivery.seller_id,
-                    seller_id=delivery.seller_id,
-                    order_id=delivery.order_id,
-                    category='delivery',
-                    title='Delivery partner assigned',
-                    text=seller_dp_body,
-                    entity_type='delivery',
-                    entity_id=delivery.id,
-                    action_label='Track delivery',
-                    action_target='deliveries',
-                    channel='whatsapp',
-                    delivery_status=self.whatsapp.delivery_status(dp_wa_result),
-                )
-                if delivery.buyer_phone:
-                    buyer_dp_body = (
-                        f"A delivery partner ({delivery.delivery_partner_name}) has been "
-                        f"assigned to your {delivery.product_name} delivery."
-                    )
-                    try:
-                        self.whatsapp.send_text_message(to=delivery.buyer_phone, body=buyer_dp_body)
-                    except Exception:
-                        pass
+                delivery = self.assign_delivery_partner_from_ops(delivery)
             self.notify_buyer(
-                recipient_id=order.buyer_phone,
+                recipient_id=self.get_buyer_notification_recipient(order=order),
                 category='order',
                 title='Seller accepted order',
                 text=f'{order.seller_name} accepted your {order.product_name} order for {order.quantity_kg:g} kg.',
@@ -1262,7 +1429,7 @@ class MarketplaceService:
             order.status = 'rejected'
             order.fulfillment_status = 'cancelled'
             self.notify_buyer(
-                recipient_id=order.buyer_phone,
+                recipient_id=self.get_buyer_notification_recipient(order=order),
                 category='order',
                 title='Seller rejected order',
                 text=f'{order.seller_name} could not accept your {order.product_name} order.',
@@ -1496,13 +1663,14 @@ class MarketplaceService:
                 distance_source='haversine' if distance is not None else 'unavailable',
             )
             produce_subtotal = round(member.quantity_kg * price, 2)
+            demand_req = self.store.get_demand_request(member.request_id)
             order = Order(
                 listing_id=listing.id,
                 seller_id=listing.seller_id,
                 seller_name=listing.seller_name,
                 product_name=listing.product_name,
                 buyer_name=member.buyer_name,
-                buyer_phone=None,
+                buyer_phone=demand_req.phone if demand_req else None,
                 buyer_type='kirana',
                 quantity_kg=member.quantity_kg,
                 pickup_time=pool.locality_label,
@@ -1521,8 +1689,6 @@ class MarketplaceService:
             )
             self.store.save_order(order)
             created_orders.append(order)
-
-            demand_req = self.store.get_demand_request(member.request_id)
             pool_buyer_phone = demand_req.phone if demand_req else None
             delivery = Delivery(
                 order_id=order.id,
@@ -1542,46 +1708,13 @@ class MarketplaceService:
                 status='order_accepted',
                 current_actor_role='ops' if listing.quality_status == 'pending' else 'seller',
                 buyer_phone=pool_buyer_phone,
-                **assign_delivery_partner(),
                 **compute_pickup_slot(),
             )
             self.store.save_delivery(delivery)
+            delivery = self.assign_delivery_partner_from_ops(delivery)
             created_deliveries.append(delivery)
-            seller_dp_body = (
-                f"Delivery partner assigned for your {delivery.product_name} order.\n"
-                f"Partner: {delivery.delivery_partner_name} ({delivery.delivery_partner_id})\n"
-                f"Vehicle: {delivery.delivery_partner_vehicle}\n"
-                f"Pickup scheduled: {delivery.pickup_slot_label}"
-            )
-            try:
-                dp_wa_result = self.whatsapp.send_text_message(to=delivery.seller_id, body=seller_dp_body)
-            except Exception:
-                dp_wa_result = {'sent': False}
-            self.notify_seller(
-                recipient_id=delivery.seller_id,
-                seller_id=delivery.seller_id,
-                order_id=delivery.order_id,
-                category='delivery',
-                title='Delivery partner assigned',
-                text=seller_dp_body,
-                entity_type='delivery',
-                entity_id=delivery.id,
-                action_label='Track delivery',
-                action_target='deliveries',
-                channel='whatsapp',
-                delivery_status=self.whatsapp.delivery_status(dp_wa_result),
-            )
-            if delivery.buyer_phone:
-                buyer_dp_body = (
-                    f"A delivery partner ({delivery.delivery_partner_name}) has been "
-                    f"assigned to your {delivery.product_name} delivery."
-                )
-                try:
-                    self.whatsapp.send_text_message(to=delivery.buyer_phone, body=buyer_dp_body)
-                except Exception:
-                    pass
             self.notify_buyer(
-                recipient_id=member.buyer_id,
+                recipient_id=self.get_buyer_notification_recipient(delivery=delivery),
                 category='demand',
                 title='Seller committed to your demand pool',
                 text=(
@@ -1772,6 +1905,14 @@ class MarketplaceService:
             metrics=self.build_ops_metrics(),
         )
 
+    def reassign_delivery_partner(self, delivery_id: str, partner_id: str, assigned_by: str) -> Delivery:
+        delivery = self.store.get_delivery(delivery_id)
+        if delivery is None:
+            raise ValueError('Delivery not found')
+        if delivery.delivery_partner_id == partner_id and delivery.assignment_status == 'assigned':
+            return delivery
+        return self.assign_delivery_partner_from_ops(delivery, partner_id=partner_id, assigned_by=assigned_by)
+
     def advance_delivery(self, delivery_id: str, next_status: str, *, actor_role: str | None = None, actor_id: str | None = None) -> Delivery:
         delivery = self.store.get_delivery(delivery_id)
         if delivery is None:
@@ -1827,6 +1968,8 @@ class MarketplaceService:
                         pool.status = 'fulfilling'
                     pool.updated_at = datetime.utcnow()
                     self.store.save_commit_pool(pool)
+        if next_status in {'buyer_confirmed', 'settled', 'cancelled'}:
+            self.release_delivery_partner(delivery)
         self.notify_seller(
             recipient_id=delivery.seller_id,
             seller_id=delivery.seller_id,
@@ -1839,9 +1982,9 @@ class MarketplaceService:
             action_label='Open deliveries',
             action_target='deliveries',
         )
-        if delivery.buyer_id:
+        if self.get_buyer_notification_recipient(delivery=delivery):
             self.notify_buyer(
-                recipient_id=delivery.buyer_id,
+                recipient_id=self.get_buyer_notification_recipient(delivery=delivery),
                 category='delivery',
                 title='Delivery status updated',
                 text=f'{delivery.product_name} delivery is now {next_status.replace("_", " ")}.',

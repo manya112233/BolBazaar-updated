@@ -91,7 +91,8 @@ from pathlib import Path
 from threading import RLock
 from typing import Any
 
-from app.schemas import BuyerDemandEvent, CommitDemandPool, Delivery, DemandRequest, LedgerEntry, Listing, NotificationRecord, Order, OtpRequestRecord, SellerInsight, SellerProfile, SellerSession
+from app.schemas import BuyerDemandEvent, CommitDemandPool, Delivery, DeliveryPartner, DemandRequest, LedgerEntry, Listing, NotificationRecord, Order, OtpRequestRecord, SellerInsight, SellerProfile, SellerSession
+from app.services.delivery_partners import seeded_delivery_partners
 
 
 class JsonStore:
@@ -117,6 +118,7 @@ class JsonStore:
                 "demand_requests": [],
                 "commit_pools": [],
                 "deliveries": [],
+                "delivery_partners": [],
             })
 
     def _read(self) -> dict[str, Any]:
@@ -146,6 +148,7 @@ class JsonStore:
                 "demand_requests": [],
                 "commit_pools": [],
                 "deliveries": [],
+                "delivery_partners": [],
             })
 
     def list_listings(self) -> list[Listing]:
@@ -716,4 +719,32 @@ class JsonStore:
             data["deliveries"] = deliveries
             self._write(data)
         return delivery
+
+    def list_delivery_partners(self) -> list[DeliveryPartner]:
+        data = self._read()
+        return [DeliveryPartner.model_validate(item) for item in data.get("delivery_partners", [])]
+
+    def get_delivery_partner(self, partner_id: str) -> DeliveryPartner | None:
+        for partner in self.list_delivery_partners():
+            if partner.id == partner_id:
+                return partner
+        return None
+
+    def save_delivery_partner(self, partner: DeliveryPartner) -> DeliveryPartner:
+        with self._lock:
+            data = self._read()
+            partners = [item for item in data.get("delivery_partners", []) if item["id"] != partner.id]
+            partners.append(json.loads(partner.model_dump_json()))
+            data["delivery_partners"] = partners
+            self._write(data)
+        return partner
+
+    def seed_delivery_partners_if_missing(self) -> list[DeliveryPartner]:
+        existing = self.list_delivery_partners()
+        if existing:
+            return existing
+        seeded = seeded_delivery_partners()
+        for partner in seeded:
+            self.save_delivery_partner(partner)
+        return seeded
 

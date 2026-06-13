@@ -1,20 +1,24 @@
+import { useState } from 'react';
 import DeliveryBoard from './DeliveryBoard';
 import DataTable from './dashboard/DataTable';
 import KpiCard from './dashboard/KpiCard';
 import StatusBadge from './dashboard/StatusBadge';
 import type { Language } from '../i18n';
-import type { FulfillmentDeliveryStatus, Listing, ListingQualityGrade, ListingQualityStatus, OpsDashboardResponse } from '../types';
+import type { DeliveryPartner, FulfillmentDeliveryStatus, Listing, ListingQualityGrade, ListingQualityStatus, OpsDashboardResponse } from '../types';
 
 export default function OpsWorkspace({
   sectionId,
   language,
   dashboard,
+  deliveryPartners,
   onUpdateQuality,
   onAdvanceDelivery,
+  onAssignPartner,
 }: {
   sectionId: string;
   language: Language;
   dashboard: OpsDashboardResponse | null;
+  deliveryPartners: DeliveryPartner[];
   onUpdateQuality: (listingId: string, payload: {
     status: ListingQualityStatus;
     grade?: ListingQualityGrade | null;
@@ -24,7 +28,9 @@ export default function OpsWorkspace({
     proof_images?: string[];
   }) => Promise<void>;
   onAdvanceDelivery: (deliveryId: string, nextStatus: FulfillmentDeliveryStatus) => Promise<void>;
+  onAssignPartner: (deliveryId: string, partnerId: string) => Promise<void>;
 }) {
+  const [selectedPartners, setSelectedPartners] = useState<Record<string, string>>({});
   if (!dashboard) {
     return <div className="bb-empty-state"><strong>Ops dashboard loading</strong><p>Supply-chain metrics and queues will appear here.</p></div>;
   }
@@ -98,12 +104,63 @@ export default function OpsWorkspace({
       )}
 
       {sectionId === 'deliveries' && (
-        <DeliveryBoard
-          deliveries={dashboard.active_deliveries}
-          onAdvance={onAdvanceDelivery}
-          role="ops"
-          language={language}
-        />
+        <>
+          <DeliveryBoard
+            deliveries={dashboard.active_deliveries}
+            onAdvance={onAdvanceDelivery}
+            role="ops"
+            language={language}
+          />
+          <section className="bb-panel">
+            <div className="bb-panel-head">
+              <div>
+                <h3>Assign or reassign partners</h3>
+                <p>Ops can correct the automatic dispatch decision without changing the delivery ID.</p>
+              </div>
+            </div>
+            <DataTable
+              columns={[
+                { key: 'delivery', label: 'Delivery', render: (row) => <strong>{row.product_name} - {row.quantity_kg} kg</strong> },
+                { key: 'buyer', label: 'Buyer', render: (row) => row.buyer_name },
+                { key: 'partner', label: 'Assigned partner', render: (row) => row.delivery_partner_name ? `${row.delivery_partner_name} (${row.delivery_partner_id})` : 'Unassigned' },
+                { key: 'vehicle', label: 'Vehicle', render: (row) => row.delivery_partner_vehicle || '-' },
+                { key: 'pickup', label: 'Pickup slot', render: (row) => row.pickup_slot_label || '-' },
+                {
+                  key: 'assign',
+                  label: 'Assign',
+                  render: (row) => (
+                    <div className="action-row">
+                      <select
+                        className="bb-select"
+                        value={selectedPartners[row.id] || row.delivery_partner_id || ''}
+                        onChange={(event) => {
+                          setSelectedPartners((current) => ({ ...current, [row.id]: event.target.value }));
+                        }}
+                      >
+                        <option value="">Select partner</option>
+                        {deliveryPartners.map((partner) => (
+                          <option key={partner.id} value={partner.id}>
+                            {partner.id} - {partner.name} ({partner.status})
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        className="ghost-button small"
+                        disabled={!(selectedPartners[row.id] || row.delivery_partner_id)}
+                        onClick={() => void onAssignPartner(row.id, selectedPartners[row.id] || row.delivery_partner_id || '')}
+                      >
+                        {row.delivery_partner_id ? 'Reassign' : 'Assign'}
+                      </button>
+                    </div>
+                  ),
+                },
+              ]}
+              rows={dashboard.active_deliveries}
+              emptyTitle="No active deliveries"
+              emptyBody="Partner assignments will appear here once deliveries are created."
+            />
+          </section>
+        </>
       )}
 
       {(sectionId === 'metrics' || sectionId === 'quality') && (

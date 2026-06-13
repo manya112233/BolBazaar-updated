@@ -4,7 +4,8 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from app.services.google_clients import GoogleClients
-from app.schemas import BuyerDemandEvent, CommitDemandPool, Delivery, DemandRequest, LedgerEntry, Listing, NotificationRecord, Order, OtpRequestRecord, SellerInsight, SellerProfile, SellerSession
+from app.schemas import BuyerDemandEvent, CommitDemandPool, Delivery, DeliveryPartner, DemandRequest, LedgerEntry, Listing, NotificationRecord, Order, OtpRequestRecord, SellerInsight, SellerProfile, SellerSession
+from app.services.delivery_partners import seeded_delivery_partners
 
 try:
     from google.api_core.exceptions import AlreadyExists
@@ -34,6 +35,7 @@ class FirestoreStore:
         self.demand_requests_collection = self.db.collection('demand_requests')
         self.commit_pools_collection = self.db.collection('commit_pools')
         self.deliveries_collection = self.db.collection('deliveries')
+        self.delivery_partners_collection = self.db.collection('delivery_partners')
         self._validate_connection()
 
     def _validate_connection(self) -> None:
@@ -57,6 +59,7 @@ class FirestoreStore:
             self.demand_requests_collection,
             self.commit_pools_collection,
             self.deliveries_collection,
+            self.delivery_partners_collection,
         ]:
             for doc in collection.stream():
                 doc.reference.delete()
@@ -410,4 +413,27 @@ class FirestoreStore:
     def save_delivery(self, delivery: Delivery) -> Delivery:
         self.deliveries_collection.document(delivery.id).set(delivery.model_dump(mode='json'))
         return delivery
+
+    def list_delivery_partners(self) -> list[DeliveryPartner]:
+        docs = self.delivery_partners_collection.stream()
+        return [DeliveryPartner.model_validate(doc.to_dict()) for doc in docs]
+
+    def get_delivery_partner(self, partner_id: str) -> DeliveryPartner | None:
+        doc = self.delivery_partners_collection.document(partner_id).get()
+        if not doc.exists:
+            return None
+        return DeliveryPartner.model_validate(doc.to_dict())
+
+    def save_delivery_partner(self, partner: DeliveryPartner) -> DeliveryPartner:
+        self.delivery_partners_collection.document(partner.id).set(partner.model_dump(mode='json'))
+        return partner
+
+    def seed_delivery_partners_if_missing(self) -> list[DeliveryPartner]:
+        existing = self.list_delivery_partners()
+        if existing:
+            return existing
+        seeded = seeded_delivery_partners()
+        for partner in seeded:
+            self.save_delivery_partner(partner)
+        return seeded
 

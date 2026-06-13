@@ -116,10 +116,34 @@ export default function DeliveryBoard({ deliveries, onAdvance, role, language }:
                   <span className="info-value">{delivery.distance_km} km</span>
                 </div>
               ) : null}
-              {role === 'seller' && delivery.pickup_slot_label ? (
+              {delivery.pickup_slot_label ? (
                 <div className="delivery-info-item">
-                  <span className="info-label">{language === 'hi' ? 'पिकअप समय' : 'Pickup'}</span>
+                  <span className="info-label">{language === 'hi' ? 'à¤ªà¤¿à¤•à¤…à¤ª à¤¸à¤®à¤¯' : 'Pickup'}</span>
                   <span className="info-value">{delivery.pickup_slot_label}</span>
+                </div>
+              ) : null}
+              {delivery.delivery_partner_name ? (
+                <div className="delivery-info-item">
+                  <span className="info-label">{language === 'hi' ? 'à¤ªà¤¾à¤°à¥à¤Ÿà¤¨à¤°' : 'Partner'}</span>
+                  <span className="info-value">{delivery.delivery_partner_name} {delivery.delivery_partner_id ? `(${delivery.delivery_partner_id})` : ''}</span>
+                </div>
+              ) : null}
+              {delivery.delivery_partner_vehicle ? (
+                <div className="delivery-info-item">
+                  <span className="info-label">{language === 'hi' ? 'à¤µà¤¾à¤¹à¤¨' : 'Vehicle'}</span>
+                  <span className="info-value">{delivery.delivery_partner_vehicle}</span>
+                </div>
+              ) : null}
+              {delivery.delivery_partner_phone ? (
+                <div className="delivery-info-item">
+                  <span className="info-label">{language === 'hi' ? 'à¤«à¥‹à¤¨' : 'Phone'}</span>
+                  <span className="info-value">{delivery.delivery_partner_phone}</span>
+                </div>
+              ) : null}
+              {delivery.assignment_status ? (
+                <div className="delivery-info-item">
+                  <span className="info-label">{language === 'hi' ? 'à¤…à¤¸à¤¾à¤‡à¤¨à¤®à¥‡à¤‚à¤Ÿ' : 'Assignment'}</span>
+                  <span className="info-value">{delivery.assignment_status}</span>
                 </div>
               ) : null}
             </div>

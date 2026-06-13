@@ -25,6 +25,7 @@ export type Listing = {
   quality_checked_at?: string | null;
   quality_checked_by?: string | null;
   image_url?: string | null;
+  image_source?: 'seller_upload' | 'produce_catalog' | 'generic_catalog' | null;
   description?: string | null;
   tags: string[];
   latitude?: number | null;
@@ -369,6 +370,9 @@ export type Delivery = {
   delivery_partner_name?: string | null;
   delivery_partner_phone?: string | null;
   delivery_partner_vehicle?: string | null;
+  partner_assigned_at?: string | null;
+  partner_assigned_by?: string | null;
+  assignment_status?: string | null;
   buyer_phone?: string | null;
   pickup_scheduled_at?: string | null;
   pickup_slot_label?: string | null;
@@ -446,4 +450,17 @@ export type OpsDashboardResponse = {
   rejected_listings: Listing[];
   active_deliveries: Delivery[];
   metrics: OpsMetricSnapshot;
+};
+
+export type DeliveryPartner = {
+  id: string;
+  name: string;
+  phone: string;
+  vehicle_type: string;
+  vehicle_number: string;
+  status: 'available' | 'assigned' | 'offline';
+  active: boolean;
+  current_delivery_id?: string | null;
+  created_at: string;
+  updated_at: string;
 };

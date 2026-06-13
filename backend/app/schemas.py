@@ -12,6 +12,7 @@ OrderStatus = Literal['pending', 'accepted', 'rejected', 'completed']
 ListingStatus = Literal['live', 'paused', 'sold_out']
 SourceChannel = Literal['whatsapp', 'demo', 'api']
 QualityAssessmentSource = Literal['text_signal', 'ai_visual']
+ListingImageSource = Literal['seller_upload', 'produce_catalog', 'generic_catalog']
 AuthRole = Literal['buyer', 'seller', 'ops']
 NotificationRecipientRole = Literal['buyer', 'seller', 'ops', 'all']
 NotificationCategory = Literal['order', 'delivery', 'demand', 'quality', 'pricing', 'ledger', 'system']
@@ -45,6 +46,7 @@ FulfillmentDeliveryStatus = Literal[
     'settled',
     'cancelled',
 ]
+DeliveryPartnerStatus = Literal['available', 'assigned', 'offline']
 DemandRequestStatus = Literal['open', 'pooled', 'committed', 'fulfilled', 'cancelled', 'expired']
 DemandPoolStatus = Literal['forming', 'open', 'committed', 'fulfilling', 'fulfilled', 'expired']
 SellerVerificationMethod = Literal[
@@ -328,6 +330,7 @@ class ListingCreate(BaseModel):
     quality_checked_at: datetime | None = None
     quality_checked_by: str | None = None
     image_url: HttpUrl | None = None
+    image_source: ListingImageSource | None = None
     description: str | None = None
     tags: list[str] = Field(default_factory=list)
     latitude: float | None = None
@@ -365,6 +368,7 @@ class Listing(BaseModel):
     quality_checked_at: datetime | None = None
     quality_checked_by: str | None = None
     image_url: HttpUrl | None = None
+    image_source: ListingImageSource | None = None
     description: str | None = None
     tags: list[str] = Field(default_factory=list)
     latitude: float | None = None
@@ -620,6 +624,19 @@ class CommitDemandPool(BaseModel):   # persisted, commitable pool (distinct from
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
 
+class DeliveryPartner(BaseModel):
+    id: str
+    name: str
+    phone: str
+    vehicle_type: str
+    vehicle_number: str
+    status: DeliveryPartnerStatus = 'available'
+    active: bool = True
+    current_delivery_id: str | None = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+
 class PoolCommitIn(BaseModel):
     seller_id: str
     listing_id: str
@@ -652,6 +669,9 @@ class Delivery(BaseModel):
     delivery_partner_name: str | None = None
     delivery_partner_phone: str | None = None
     delivery_partner_vehicle: str | None = None
+    partner_assigned_at: datetime | None = None
+    partner_assigned_by: str | None = None
+    assignment_status: str | None = None
     buyer_phone: str | None = None
     pickup_scheduled_at: datetime | None = None
     pickup_slot_label: str | None = None
@@ -678,6 +698,11 @@ class DeliveryAdvanceRequestIn(BaseModel):
     next_status: FulfillmentDeliveryStatus
     actor_role: AuthRole
     actor_id: str | None = None
+
+
+class DeliveryPartnerAssignIn(BaseModel):
+    partner_id: str
+    assigned_by: str = Field(min_length=2, max_length=120)
 
 
 class BuyerDeliveryConfirmIn(BaseModel):

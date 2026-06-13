@@ -302,30 +302,17 @@ class SellerFlowService:
             )
 
         if self._has_listing_signal(message_text):
-            if capture_mode == 'voice_note':
-                return self._prompt_for_listing_confirmation(
-                    profile=profile,
-                    draft_message=message_text,
-                    quality_assessment=self._resolve_quality_assessment(
-                        session=session,
-                        raw_text=message_text,
-                        image_bytes=image_bytes,
-                        image_mime_type=image_mime_type,
-                    ),
-                    capture_mode=capture_mode,
-                )
-            return self._create_listing(
+            return self._prompt_for_listing_confirmation(
                 profile=profile,
-                message_text=message_text,
-                image_url=image_url,
+                draft_message=message_text,
                 quality_assessment=self._resolve_quality_assessment(
                     session=session,
                     raw_text=message_text,
                     image_bytes=image_bytes,
                     image_mime_type=image_mime_type,
                 ),
-                image_bytes=image_bytes,
-                image_mime_type=image_mime_type,
+                capture_mode=capture_mode,
+                draft_image_url=image_url,
             )
 
         return self._send_main_menu(profile, prefix=self._copy(profile, 'unknown'))
@@ -2251,31 +2238,17 @@ class SellerFlowService:
                 image_mime_type=image_mime_type,
                 capture_mode=effective_capture_mode,
             )
-        if effective_capture_mode == 'voice_note':
-            return self._prompt_for_listing_confirmation(
-                profile=profile,
-                draft_message=cleaned,
-                quality_assessment=quality_assessment,
-                capture_mode=effective_capture_mode,
-                draft_image_url=self._listing_image_url(
-                    session=session,
-                    image_url=image_url,
-                    image_bytes=image_bytes,
-                    image_mime_type=image_mime_type,
-                ),
-            )
-        return self._create_listing(
+        return self._prompt_for_listing_confirmation(
             profile=profile,
-            message_text=cleaned,
-            image_url=self._listing_image_url(
+            draft_message=cleaned,
+            quality_assessment=quality_assessment,
+            capture_mode=effective_capture_mode,
+            draft_image_url=self._listing_image_url(
                 session=session,
                 image_url=image_url,
                 image_bytes=image_bytes,
                 image_mime_type=image_mime_type,
             ),
-            quality_assessment=quality_assessment,
-            image_bytes=image_bytes,
-            image_mime_type=image_mime_type,
         )
 
     def _handle_listing_slot_capture(
@@ -2379,31 +2352,17 @@ class SellerFlowService:
         cleaned = self._apply_visual_product_hint(cleaned, quality_assessment)
 
         if self._has_listing_signal(cleaned):
-            if capture_mode == 'voice_note':
-                return self._prompt_for_listing_confirmation(
-                    profile=profile,
-                    draft_message=cleaned,
-                    quality_assessment=quality_assessment,
-                    capture_mode=capture_mode,
-                    draft_image_url=self._listing_image_url(
-                        session=None,
-                        image_url=image_url,
-                        image_bytes=image_bytes,
-                        image_mime_type=image_mime_type,
-                    ),
-                )
-            return self._create_listing(
+            return self._prompt_for_listing_confirmation(
                 profile=profile,
-                message_text=cleaned,
-                image_url=self._listing_image_url(
+                draft_message=cleaned,
+                quality_assessment=quality_assessment,
+                capture_mode=capture_mode,
+                draft_image_url=self._listing_image_url(
                     session=None,
                     image_url=image_url,
                     image_bytes=image_bytes,
                     image_mime_type=image_mime_type,
                 ),
-                quality_assessment=quality_assessment,
-                image_bytes=image_bytes,
-                image_mime_type=image_mime_type,
             )
 
         signals = self._listing_signals(cleaned)
@@ -2527,6 +2486,26 @@ class SellerFlowService:
         pickup_text = signals.get('pickup_location')
         if not pickup_text or pickup_text == DEFAULT_PICKUP_LOCATION:
             pickup_text = profile.default_pickup_location or DEFAULT_PICKUP_LOCATION
+        price_reference = self._listing_price_reference(
+            product_name=product_name,
+            quality_grade=None,
+            seller_price_per_kg=price_per_kg if isinstance(price_per_kg, float) else None,
+            pickup_location=pickup_text,
+        )
+        pricing_lines: list[str] = []
+        if price_reference is not None and price_reference.mandi_modal_price_per_kg is not None:
+            pricing_lines.append(
+                f'- Mandi reference: Rs {price_reference.mandi_modal_price_per_kg}/kg'
+                if not self._is_hindi(profile)
+                else f'- मंडी रेफरेंस: Rs {price_reference.mandi_modal_price_per_kg}/किलो'
+            )
+            if price_reference.suggested_min_price_per_kg is not None and price_reference.suggested_max_price_per_kg is not None:
+                pricing_lines.append(
+                    f'- Suggested range: Rs {price_reference.suggested_min_price_per_kg}-Rs {price_reference.suggested_max_price_per_kg}/kg'
+                    if not self._is_hindi(profile)
+                    else f'- सुझाई गई रेंज: Rs {price_reference.suggested_min_price_per_kg}-Rs {price_reference.suggested_max_price_per_kg}/किलो'
+                )
+        pricing_block = f"\n{chr(10).join(pricing_lines)}" if pricing_lines else ''
         if self._is_hindi(profile):
             return (
                 'लाइव करने से पहले इस लिस्टिंग को देखें:\n'
@@ -2541,9 +2520,28 @@ class SellerFlowService:
             f'- Product: {product_name}\n'
             f'- Quantity: {quantity_text}\n'
             f'- Price: {price_text}\n'
-            f'- Pickup: {pickup_text}\n\n'
+            f'- Pickup: {pickup_text}'
+            f'{pricing_block}\n\n'
             'Make it live or edit it?'
         )
+
+    def _listing_price_reference(
+        self,
+        *,
+        product_name: str,
+        quality_grade: str | None,
+        seller_price_per_kg: float | None,
+        pickup_location: str | None,
+    ) -> Any | None:
+        try:
+            return self.marketplace.suggest_price(PricingSuggestionIn(
+                product_name=product_name,
+                quality_grade=quality_grade,
+                seller_price_per_kg=seller_price_per_kg,
+                pickup_location=pickup_location,
+            ))
+        except Exception:
+            return None
 
     def _handle_listing_confirmation(
         self,
@@ -2900,9 +2898,9 @@ class SellerFlowService:
         if dashboard is None or not dashboard.recent_listings:
             return self._send_text(profile, self._copy(profile, 'listings_empty'), handled='seller_listings')
         body_lines = ['आपकी लाइव लिस्टिंग:'] if self._is_hindi(profile) else ['Your live listings:']
-        for item in dashboard.recent_listings:
+        for index, item in enumerate(dashboard.recent_listings, start=1):
             quality_label = item.quality_status.replace('_', ' ').title()
-            verified_label = 'BolBazaar Verified' if item.verified else 'Unverified'
+            verified_label = 'BolBazaar Verified' if item.verified_by_bolbazaar else 'Unverified'
             grade_label = f'Grade {item.quality_grade}' if item.quality_grade else 'Grade pending'
             if self._is_hindi(profile):
                 body_lines.append(
@@ -2910,7 +2908,7 @@ class SellerFlowService:
                 )
             else:
                 body_lines.append(
-                    f'- {item.id}: {item.product_name}, {item.available_kg} kg at Rs {item.price_per_kg}/kg, '
+                    f'- {index}. {item.product_name}, {item.available_kg} kg at Rs {item.price_per_kg}/kg, '
                     f'pickup {item.pickup_location}, quality {quality_label}, {grade_label}, {verified_label}'
                 )
         return self._send_text(profile, '\n'.join(body_lines), handled='seller_listings')

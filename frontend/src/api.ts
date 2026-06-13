@@ -1,4 +1,4 @@
-import type { AuthRole, BuyerDemandSearchRequest, BuyerDemandSearchResponse, CommitDemandPool, Delivery, DeliveryEstimate, DemandPoolOpportunity, DemandPoolResponse, DemandRequest, DemandRequestCreate, FulfillmentDeliveryStatus, Insight, Listing, ListingQualityGrade, ListingQualityStatus, Notification, NotificationRecipientRole, OpsDashboardResponse, OpsMetricSnapshot, Order, OtpRequestResponse, OtpVerifyResponse, SellerDashboard, SellerLedgerView, SellerProfile } from './types';
+import type { AuthRole, BuyerDemandSearchRequest, BuyerDemandSearchResponse, CommitDemandPool, Delivery, DeliveryEstimate, DeliveryPartner, DemandPoolOpportunity, DemandPoolResponse, DemandRequest, DemandRequestCreate, FulfillmentDeliveryStatus, Insight, Listing, ListingQualityGrade, ListingQualityStatus, Notification, NotificationRecipientRole, OpsDashboardResponse, OpsMetricSnapshot, Order, OtpRequestResponse, OtpVerifyResponse, SellerDashboard, SellerLedgerView, SellerProfile } from './types';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 
@@ -40,7 +40,6 @@ export async function createDemoListing(): Promise<void> {
       seller_id: 'seller-demo-1',
       seller_name: 'Shakti FPO',
       message_text: 'Aaj 50 kilo tamatar hai, 28 rupay kilo, Laxmi Nagar pickup',
-      image_url: 'https://images.unsplash.com/photo-1546470427-e6ac89a99c4d?auto=format&fit=crop&w=1200&q=80',
     }),
   });
 }
@@ -276,6 +275,22 @@ export async function advanceDeliveryForActor(
   payload: { next_status: FulfillmentDeliveryStatus; actor_role: AuthRole; actor_id?: string },
 ): Promise<Delivery> {
   const data = await request<{ ok: boolean; delivery: Delivery }>(`/api/ops/deliveries/${deliveryId}/advance`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+  return data.delivery;
+}
+
+export async function fetchDeliveryPartners(): Promise<DeliveryPartner[]> {
+  const data = await request<{ items: DeliveryPartner[] }>('/api/ops/delivery-partners');
+  return data.items;
+}
+
+export async function assignDeliveryPartner(
+  deliveryId: string,
+  payload: { partner_id: string; assigned_by: string },
+): Promise<Delivery> {
+  const data = await request<{ ok: boolean; delivery: Delivery }>(`/api/ops/deliveries/${deliveryId}/assign-partner`, {
     method: 'POST',
     body: JSON.stringify(payload),
   });

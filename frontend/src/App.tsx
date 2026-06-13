@@ -19,8 +19,10 @@ import {
   fetchCommitPools,
   commitToPool,
   fetchDeliveries,
+  fetchDeliveryPartners,
   advanceDelivery,
   advanceDeliveryForActor,
+  assignDeliveryPartner,
   confirmBuyerDelivery,
   fetchOpsDashboard,
   markAllNotificationsRead,
@@ -35,7 +37,7 @@ import OpsWorkspace from './components/OpsWorkspace';
 import SellerWorkspace from './components/SellerWorkspace';
 import DashboardLayout, { type DashboardSection } from './components/dashboard/DashboardLayout';
 import { t } from './i18n';
-import type { AuthRole, AuthSession, CommitDemandPool, Delivery, DemandPoolOpportunity, DemandRequest, Insight, Listing, Notification, OpsDashboardResponse, Order, SellerDashboard, SellerLedgerView, SellerProfile } from './types';
+import type { AuthRole, AuthSession, CommitDemandPool, Delivery, DeliveryPartner, DemandPoolOpportunity, DemandRequest, Insight, Listing, Notification, OpsDashboardResponse, Order, SellerDashboard, SellerLedgerView, SellerProfile } from './types';
 
 const BUYER_SESSION_STORAGE_KEY = 'bolbazaar_buyer_session_id';
 const APP_SESSION_STORAGE_KEY = 'bolbazaar_web_session';
@@ -143,6 +145,7 @@ export default function App() {
   const [commitPools, setCommitPools] = useState<CommitDemandPool[]>([]);
   const [deliveries, setDeliveries] = useState<Delivery[]>([]);
   const [opsDashboard, setOpsDashboard] = useState<OpsDashboardResponse | null>(null);
+  const [deliveryPartners, setDeliveryPartners] = useState<DeliveryPartner[]>([]);
   const [opsSection, setOpsSection] = useState('quality');
 
   const activeSellerId = sessionSellerId(session) || selectedSellerId;
@@ -172,8 +175,12 @@ export default function App() {
       setDemandPools(nextDemandPools);
 
       if (currentRole === 'ops') {
-        const nextOpsDashboard = await fetchOpsDashboard();
+        const [nextOpsDashboard, nextDeliveryPartners] = await Promise.all([
+          fetchOpsDashboard(),
+          fetchDeliveryPartners(),
+        ]);
         setOpsDashboard(nextOpsDashboard);
+        setDeliveryPartners(nextDeliveryPartners);
         setBuyerDemands([]);
         setBuyerDeliveries([]);
         setDashboard(null);
@@ -204,6 +211,7 @@ export default function App() {
       } else {
         setBuyerDemands([]);
         setBuyerDeliveries([]);
+        setDeliveryPartners([]);
       }
 
       if (nextSellerId) {
@@ -560,6 +568,7 @@ export default function App() {
               sectionId={opsSection}
               language={language}
               dashboard={opsDashboard}
+              deliveryPartners={deliveryPartners}
               onUpdateQuality={async (listingId, payload) => {
                 await updateListingQuality(listingId, payload);
                 await loadAll(activeSellerId);
@@ -569,6 +578,13 @@ export default function App() {
                   next_status: nextStatus,
                   actor_role: 'ops',
                   actor_id: session.ops_id || session.phone_number,
+                });
+                await loadAll(activeSellerId);
+              }}
+              onAssignPartner={async (deliveryId, partnerId) => {
+                await assignDeliveryPartner(deliveryId, {
+                  partner_id: partnerId,
+                  assigned_by: session.ops_id || session.phone_number,
                 });
                 await loadAll(activeSellerId);
               }}

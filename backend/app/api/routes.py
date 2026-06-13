@@ -9,7 +9,7 @@ from fastapi.responses import PlainTextResponse
 from app.dependencies import get_auth_service, get_marketplace, get_store
 from datetime import datetime, timedelta
 
-from app.schemas import BuyerDemandEvent, BuyerDemandSearchIn, BuyerDemandSearchResponse, BuyerDeliveryConfirmIn, DeliveryAdvanceIn, DeliveryAdvanceRequestIn, DeliveryEstimateIn, DeliveryEstimateResponse, DemandPoolResponse, DemoSeedResponse, LedgerPaymentCreate, ListingQualityUpdateIn, ListingResponse, NotificationReadAllIn, OrderCreate, OrderDecisionIn, OtpRequestIn, OtpRequestResponse, OtpVerifyIn, OtpVerifyResponse, PricingSuggestionIn, SellerLedgerView, SellerMessageIn, SellerProfile, DemandRequestCreate, PoolCommitIn
+from app.schemas import BuyerDemandEvent, BuyerDemandSearchIn, BuyerDemandSearchResponse, BuyerDeliveryConfirmIn, DeliveryAdvanceIn, DeliveryAdvanceRequestIn, DeliveryEstimateIn, DeliveryEstimateResponse, DeliveryPartnerAssignIn, DemandPoolResponse, DemoSeedResponse, LedgerPaymentCreate, ListingQualityUpdateIn, ListingResponse, NotificationReadAllIn, OrderCreate, OrderDecisionIn, OtpRequestIn, OtpRequestResponse, OtpVerifyIn, OtpVerifyResponse, PricingSuggestionIn, SellerLedgerView, SellerMessageIn, SellerProfile, DemandRequestCreate, PoolCommitIn
 from app.services.auth_service import AuthService
 from app.services.marketplace import MarketplaceService
 from app.services.seller_flow import SellerFlowService
@@ -711,6 +711,11 @@ def list_ops_deliveries(marketplace: MarketplaceService = Depends(get_marketplac
     return {'items': marketplace.list_deliveries()}
 
 
+@router.get('/ops/delivery-partners')
+def list_ops_delivery_partners(marketplace: MarketplaceService = Depends(get_marketplace)) -> dict:
+    return {'items': [partner.model_dump(mode='json') for partner in marketplace.list_delivery_partners()]}
+
+
 @router.post('/ops/deliveries/{delivery_id}/advance')
 def advance_ops_delivery(
     delivery_id: str,
@@ -719,6 +724,18 @@ def advance_ops_delivery(
 ) -> dict:
     try:
         return {'ok': True, 'delivery': marketplace.advance_delivery_for_actor(delivery_id, payload)}
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.post('/ops/deliveries/{delivery_id}/assign-partner')
+def assign_ops_delivery_partner(
+    delivery_id: str,
+    payload: DeliveryPartnerAssignIn,
+    marketplace: MarketplaceService = Depends(get_marketplace),
+) -> dict:
+    try:
+        return {'ok': True, 'delivery': marketplace.reassign_delivery_partner(delivery_id, payload.partner_id, payload.assigned_by)}
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
