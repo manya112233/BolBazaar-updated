@@ -12,9 +12,9 @@ type DemandPoolBoardProps = {
 
 export default function DemandPoolBoard({ pools, listings, sellerId, language, onCommit }: DemandPoolBoardProps) {
   const [commitPoolId, setCommitPoolId] = useState<string | null>(null);
-  const [selectedListingId, setSelectedListingId] = useState('');
   const [commitPrice, setCommitPrice] = useState<number | ''>('');
   const [committing, setCommitting] = useState(false);
+  const [committedPrices, setCommittedPrices] = useState<Record<string, number>>({});
 
   const liveListings = listings.filter((item) => item.status === 'live' && item.seller_id === sellerId);
 
@@ -27,82 +27,122 @@ export default function DemandPoolBoard({ pools, listings, sellerId, language, o
         </div>
       ) : null}
 
-      {pools.map((pool) => (
-        <div key={pool.id} className="pool-card card">
-          <div className="pool-card-header">
-            <h4>{pool.product_name} - {pool.locality_label}</h4>
-            <span className={`status-pill status-${pool.status}`}>{pool.status}</span>
-          </div>
-          <div className="pool-stats">
-            <div className="pool-stat">
-              <span className="pool-stat-value">{pool.total_quantity_kg} kg</span>
-              <span className="pool-stat-label">{t(language, 'demandPoolBoard.totalDemand')}</span>
+      {pools.map((pool) => {
+        const ref = pool.market_price_reference;
+        const mandiPrice = ref?.mandi_modal_price_per_kg;
+        const suggestedMin = ref?.suggested_min_price_per_kg;
+        const suggestedMax = ref?.suggested_max_price_per_kg;
+        const listedPrice = liveListings[0]?.price_per_kg;
+        const committedPrice = committedPrices[pool.id];
+
+        return (
+          <div key={pool.id} className="pool-card card">
+            <div className="pool-card-header">
+              <h4>{pool.product_name} — {pool.locality_label}</h4>
+              <span className={`status-pill status-${pool.status}`}>{pool.status}</span>
             </div>
-            <div className="pool-stat">
-              <span className="pool-stat-value">{pool.buyer_count}</span>
-              <span className="pool-stat-label">{t(language, 'demandPoolBoard.buyers')}</span>
-            </div>
-            {pool.market_price_reference?.mandi_modal_price_per_kg ? (
+
+            <div className="pool-stats">
               <div className="pool-stat">
-                <span className="pool-stat-value">Rs {pool.market_price_reference.mandi_modal_price_per_kg}</span>
-                <span className="pool-stat-label">{t(language, 'demandPoolBoard.mandiModal')}</span>
+                <span className="pool-stat-value">{pool.total_quantity_kg} kg</span>
+                <span className="pool-stat-label">{t(language, 'demandPoolBoard.totalDemand')}</span>
+              </div>
+              <div className="pool-stat">
+                <span className="pool-stat-value">{pool.buyer_count}</span>
+                <span className="pool-stat-label">{t(language, 'demandPoolBoard.buyers')}</span>
+              </div>
+              {committedPrice ? (
+                <div className="pool-stat pool-stat--committed">
+                  <span className="pool-stat-value">Rs {committedPrice}/kg</span>
+                  <span className="pool-stat-label">Your committed price</span>
+                </div>
+              ) : null}
+            </div>
+
+            {/* Price reference cards */}
+            {(mandiPrice || (suggestedMin != null && suggestedMax != null) || listedPrice) ? (
+              <div className="pool-price-refs">
+                {mandiPrice ? (
+                  <div className="pool-price-ref">
+                    <span className="pool-price-ref-label">Mandi modal price</span>
+                    <span className="pool-price-ref-value">Rs {mandiPrice}/kg</span>
+                    <span className="pool-price-ref-hint">Today's wholesale market rate</span>
+                  </div>
+                ) : null}
+                {suggestedMin != null && suggestedMax != null ? (
+                  <div className="pool-price-ref pool-price-ref--suggested">
+                    <span className="pool-price-ref-label">Suggested range</span>
+                    <span className="pool-price-ref-value">Rs {suggestedMin}–{suggestedMax}/kg</span>
+                    <span className="pool-price-ref-hint">Recommended for this pool</span>
+                  </div>
+                ) : null}
+                {listedPrice ? (
+                  <div className="pool-price-ref">
+                    <span className="pool-price-ref-label">Your listed price</span>
+                    <span className="pool-price-ref-value">Rs {listedPrice}/kg</span>
+                    <span className="pool-price-ref-hint">From your active listing</span>
+                  </div>
+                ) : null}
               </div>
             ) : null}
-          </div>
-          {pool.market_price_reference?.suggested_min_price_per_kg != null && pool.market_price_reference?.suggested_max_price_per_kg != null ? (
-            <p className="bb-inline-note">
-              {t(language, 'demandPoolBoard.suggestedPrice')} Rs {pool.market_price_reference.suggested_min_price_per_kg}-Rs {pool.market_price_reference.suggested_max_price_per_kg}/kg
-            </p>
-          ) : null}
-          {pool.status === 'open' || pool.status === 'forming' ? (
-            commitPoolId === pool.id ? (
-              <div className="pool-commit-form">
-                <select value={selectedListingId} onChange={(event) => setSelectedListingId(event.target.value)}>
-                  <option value="">{t(language, 'demandPoolBoard.chooseListing')}</option>
-                  {liveListings.map((listing) => (
-                    <option key={listing.id} value={listing.id}>
-                      {listing.product_name} - {listing.available_kg} kg @ Rs {listing.price_per_kg}/kg
-                    </option>
-                  ))}
-                </select>
-                <input
-                  type="number"
-                  min={1}
-                  value={commitPrice}
-                  onChange={(event) => setCommitPrice(event.target.value === '' ? '' : Number(event.target.value))}
-                  placeholder={t(language, 'demandPoolBoard.price')}
-                />
+
+            {pool.status === 'open' || pool.status === 'forming' ? (
+              commitPoolId === pool.id ? (
+                <div className="pool-commit-form">
+                  <label className="pool-commit-label">
+                    Your supply price (Rs/kg)
+                    <input
+                      type="number"
+                      min={1}
+                      value={commitPrice}
+                      onChange={(event) => setCommitPrice(event.target.value === '' ? '' : Number(event.target.value))}
+                      placeholder="Enter your price per kg"
+                    />
+                  </label>
+                  <div className="pool-commit-actions">
+                    <button
+                      className="primary-button small"
+                      disabled={committing}
+                      onClick={async () => {
+                        const listing = liveListings[0];
+                        if (!listing) return;
+                        setCommitting(true);
+                        try {
+                          const finalPrice = commitPrice === '' ? undefined : commitPrice;
+                          await onCommit(pool.id, listing.id, finalPrice);
+                          if (finalPrice !== undefined) {
+                            setCommittedPrices((prev) => ({ ...prev, [pool.id]: finalPrice as number }));
+                          }
+                          setCommitPoolId(null);
+                          setCommitPrice('');
+                        } finally {
+                          setCommitting(false);
+                        }
+                      }}
+                    >
+                      {committing ? t(language, 'demandPoolBoard.committing') : t(language, 'demandPoolBoard.commitSupply')}
+                    </button>
+                    <button className="ghost-button small" onClick={() => { setCommitPoolId(null); setCommitPrice(''); }}>
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ) : (
                 <button
                   className="primary-button small"
-                  disabled={!selectedListingId || committing}
-                  onClick={async () => {
-                    setCommitting(true);
-                    try {
-                      await onCommit(pool.id, selectedListingId, commitPrice === '' ? undefined : commitPrice);
-                      setCommitPoolId(null);
-                    } finally {
-                      setCommitting(false);
-                    }
+                  disabled={liveListings.length === 0}
+                  onClick={() => {
+                    setCommitPoolId(pool.id);
+                    setCommitPrice('');
                   }}
                 >
-                  {committing ? t(language, 'demandPoolBoard.committing') : t(language, 'demandPoolBoard.commitSupply')}
+                  {liveListings.length === 0 ? t(language, 'demandPoolBoard.noLiveListings') : t(language, 'demandPoolBoard.fulfillPool')}
                 </button>
-              </div>
-            ) : (
-              <button
-                className="primary-button small"
-                disabled={liveListings.length === 0}
-                onClick={() => {
-                  setCommitPoolId(pool.id);
-                  setSelectedListingId(liveListings[0]?.id || '');
-                }}
-              >
-                {liveListings.length === 0 ? t(language, 'demandPoolBoard.noLiveListings') : t(language, 'demandPoolBoard.fulfillPool')}
-              </button>
-            )
-          ) : null}
-        </div>
-      ))}
+              )
+            ) : null}
+          </div>
+        );
+      })}
     </div>
   );
 }

@@ -1179,6 +1179,81 @@ textarea:focus-visible {
   font-size: 0.9rem;
 }
 
+/* committed price stat highlight */
+.pool-stat--committed .pool-stat-value {
+  color: var(--primary);
+}
+.pool-stat--committed .pool-stat-label {
+  color: var(--primary);
+  font-weight: 600;
+}
+
+/* price reference cards */
+.pool-price-refs {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 12px 0;
+}
+
+.pool-price-ref {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 120px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.03);
+  border: 1px solid rgba(0, 0, 0, 0.07);
+}
+
+.pool-price-ref--suggested {
+  background: rgba(4, 120, 87, 0.06);
+  border-color: rgba(4, 120, 87, 0.15);
+}
+
+.pool-price-ref-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--slate-500);
+}
+
+.pool-price-ref-value {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--slate-900);
+}
+
+.pool-price-ref--suggested .pool-price-ref-value {
+  color: var(--primary);
+}
+
+.pool-price-ref-hint {
+  font-size: 0.7rem;
+  color: var(--slate-400);
+}
+
+/* commit form tweaks */
+.pool-commit-label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--slate-600);
+  width: 100%;
+}
+
+.pool-commit-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
 /* ─── Delivery Board ─── */
 .delivery-board {
   display: grid;

@@ -214,7 +214,7 @@ export default function SellerOverview({
             <KpiCard label="Available stock" value={`${dashboard.total_available_kg} kg`} meta="Ready for pickup" tone="info" />
             <KpiCard label="Revenue today" value={`Rs ${dashboard.sold_today_revenue}`} meta={`${dashboard.sold_today_kg} kg sold today`} tone="warning" />
             <KpiCard label="Pending orders" value={String(dashboard.pending_orders)} meta="Needs seller response" tone="warning" />
-            <KpiCard label="Outstanding khata" value={`Rs ${dashboard.ledger_outstanding_amount}`} meta={`${dashboard.ledger_buyers_with_balance} buyers with dues`} tone="danger" />
+            <KpiCard label="Buyers who owe you" value={`Rs ${dashboard.ledger_outstanding_amount}`} meta={`${dashboard.ledger_buyers_with_balance} buyers with dues`} tone="danger" />
             <KpiCard label="Collected amount" value={`Rs ${dashboard.ledger_collected_amount}`} meta="Recorded collections" tone="success" />
             <KpiCard label="Repeat buyers" value={String(dashboard.repeat_customers)} meta={`${dashboard.total_customers} buyers served`} tone="info" />
             <KpiCard label="Buyers with dues" value={String(dashboard.ledger_buyers_with_balance)} meta="Collection follow-up queue" tone="neutral" />

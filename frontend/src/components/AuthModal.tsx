@@ -216,7 +216,9 @@ export default function AuthModal({
                   setRequestNote(response.note || null);
                   setDemoOtp(response.demo_otp || null);
                 } catch (err) {
-                  setError(err instanceof Error ? err.message : copy.sendError);
+                  const msg = err instanceof Error ? err.message : copy.sendError;
+                  const isUnregistered = msg.toLowerCase().includes('whatsapp onboarding') || msg.toLowerCase().includes('only after');
+                  setError(isUnregistered ? 'Login is only available to registered users. Please complete WhatsApp onboarding first.' : msg);
                 } finally {
                   setSending(false);
                 }
