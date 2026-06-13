@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { matchesProduceQuery } from './utils/produceSearch';
 import {
   createDemoListing,
   fetchDemandPools,
@@ -313,9 +314,8 @@ export default function App() {
 
   const filteredListings = useMemo(() => {
     return listings.filter((listing) => {
-      const matchesQuery = `${listing.product_name} ${listing.seller_name} ${listing.pickup_location}`
-        .toLowerCase()
-        .includes(query.toLowerCase());
+      const text = `${listing.product_name} ${listing.seller_name} ${listing.pickup_location}`;
+      const matchesQuery = matchesProduceQuery(text, query);
       const matchesPrice = listing.price_per_kg <= maxPrice;
       return matchesQuery && matchesPrice;
     });
@@ -326,7 +326,7 @@ export default function App() {
     const search = sellerSearch.trim().toLowerCase();
     if (!search) return activeOrders;
     return activeOrders.filter((order) =>
-      `${order.product_name} ${order.buyer_name} ${order.pickup_time}`.toLowerCase().includes(search),
+      matchesProduceQuery(`${order.product_name} ${order.buyer_name} ${order.pickup_time}`, search),
     );
   }, [activeSellerId, orders, sellerSearch]);
 
@@ -334,7 +334,7 @@ export default function App() {
     const sellerNotes = notifications.filter((note) => note.seller_id === activeSellerId);
     const search = sellerSearch.trim().toLowerCase();
     if (!search) return sellerNotes;
-    return sellerNotes.filter((note) => note.text.toLowerCase().includes(search));
+    return sellerNotes.filter((note) => matchesProduceQuery(note.text, search));
   }, [activeSellerId, notifications, sellerSearch]);
 
   const currentSeller = activeSellerId ? sellers.find((seller) => seller.seller_id === activeSellerId) || null : null;
